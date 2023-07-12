@@ -89,6 +89,22 @@ def lagrange_polynomial(S, a):
     return q/q(x=a) 
 
 
-   
+class Group: 
+    
+    def __init__(self, G): 
+        
+        if not isinstance(G, sage.groups.group.Group): 
+            print('Error: G is not a group object.')
+            exit(1)
+        
+        self.to_group = G
+        self.to_list = group_to_list(G)
+        self.vanishing_polynomial = vanishing_polynomial(G)
+        self.order = G.order()
+             
+
+
+
+
 
 
