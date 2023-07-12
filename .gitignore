@@ -1,0 +1,9 @@
+*.py
+*.idea
+
+r1cs.txt
+randomness.txt
+test.txt
+groups.txt
+outputs.txt
+.DS_Store
