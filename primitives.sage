@@ -321,7 +321,7 @@ class Matrix:
                 acc += self.val(x=k)*f*g         
         return acc 
 
-        
+
 class Vector: 
     
     def __init__(self, v, H):  
@@ -367,17 +367,37 @@ class Vector:
         f = R.lagrange_polynomial(points)
         return f
 
-
 class Group: 
     
-    def __init__(self, G): 
+    # ambient is the ambient group of G, i.e. G <= 'ambient' as groups. 
+    def __init__(self, G, ambient=None): 
         
         if not isinstance(G, sage.groups.group.Group): 
             print('Error: G is not a group object.')
-            exit(1)
-        
+            assert(0)
+      
         self.to_group = G
         self.to_list = group_to_list(G)
         self.vanishing_polynomial = vanishing_polynomial(G)
+        
+        self.ambient = ambient 
+        self.ambient_vanishing_polynomial = None 
+        self.selector = None 
+        
         self.order = G.order()
+        
+        if ambient != None: 
+            self.ambient_vanishing_polynomial = vanishing_polynomial(ambient)
+            f = self.ambient_vanishing_polynomial
+            g = self.vanishing_polynomial
+            q,r = f.quo_rem(g)
+            if r != R(0): 
+                print('Error: Remainder is non-zero.')
+                assert(0)
+            if f != q*g + r: 
+                print('Error: Division failed.')
+                assert(0)
+            self.selector = F(G.order() / ambient.order())*q # the selector polynomial 
+
+            
 
