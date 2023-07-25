@@ -1,56 +1,108 @@
-p = 79
+p = 258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458177
 F = GF(p)
-R = PolynomialRing(F, 'x')
+prime_factors = factor(p-1)
+R.<x> = PolynomialRing(F)
 Fstar = F.unit_group()
+
 
 """
 Algebraic Primitives, Part 1 
 
 """
 
-# Returns element an element of group G of order n, where n is prime 
-def element_order_p(p: int, G): 
-    
+# Samples a random element from G, which is either of type 'group' or 'subgroup'
+# In Sage, there is no method to sample an element from an object of type 'subgroup'
+def random_element(G): 
     if not isinstance(G, sage.groups.group.Group): 
         print('Error: The input G is not a group.')
-        exit(1)
-        
-    if not p.is_prime(): 
-        print('Error: The input p is not prime.')
-        exit(1)
-    
-    if G.order() % p != 0: 
-        print('Error: The order p of the desired element does not divide order(G).')
-        exit(1)
-        
-    # finds element of order p 
-    g = G.random_element()
-    h = g^(G.order()/p) 
-    while h.order()==1: 
+        assert(0)
+    if isinstance(G, sage.groups.abelian_gps.abelian_group.AbelianGroup_subgroup): 
+        rand_index = randint(0, G.order() - 1)
+        g = group_to_list(G)[rand_index]
+    else: 
         g = G.random_element()
-        h = g^(G.order()/p) 
-    return h 
+    return g
 
-# Casts a group G = [g, g^2, ..., g^n=1] into a list of ambient group elements. 
+# Casts a group G = [g, g^2, ..., g^n=1] into a list of group elements. 
 def group_to_list(G):
-    
     if not isinstance(G, sage.groups.group.Group): 
         print('Error: The input G is not a group.')
-        exit(1)
-        
-    # returns a list out of the group elements 
+        assert(0)
     result = []
     g = G.0 
     for i in range(0, G.order()): 
         result.append(g**i)
     return result 
 
-#Return the minimal degree vanishing polynomial over the subgroup H of F*. 
-def vanishing_polynomial(S): 
+# Returns an element of group G of order 2^r, where r may be composite. 
+def element_order_r(G, r): 
+    if not isinstance(G, sage.groups.group.Group): 
+        print('Error: The input G is not a group.')
+        exit(1)
+        
+    if G.order() % 2^r != 0: 
+        print('Error: The order r of the desired element does not divide order(G).')
+        exit(1)
+        
+    g = random_element(G)
+    h = g^(G.order()/2^r) 
+    tries = 0
     
+    #Ends when h is not the identity and is of order 2^r. 
+    while h.order()==1 or not is_order_r(h, r): 
+        g = random_element(G)
+        h = g^(G.order()/2^r)
+        tries +=1 
+        if tries > 1000: 
+            print('Error: Element order 2^r not found.')
+            assert(0)
+    return h 
+
+# Checks if the order of a point P is 2^r. 
+# Returns False if 2^r' * P = 1 for 0 < r' < r and True otherwise. 
+def is_order_r(P,r): 
+    for i in range(r): 
+        if F(P^(2^i)) == F(1): 
+            return False 
+    if F(P^(2^r)) != F(1): 
+        return False 
+    return True 
+
+#Returns the sparse norm of the matrix M. 
+def matrix_sparse_norm(M):
+    n = 0
+    for i in range(M.nrows()): 
+        for j in range(M.ncols()): 
+            if M[i, j] > 0: 
+                n += 1 
+    return n
+
+# Returns a matrix R that is M after zero-padding to an n x n matrix. 
+def zero_pad_matrix(M, n): 
+    if n < max(M.nrows(), M.ncols()): 
+        print('Error: M cannot be zero-padded to an n x n matrix.')
+        assert(0)
+    R = matrix(n)
+    for i in range(M.nrows()): 
+        for j in range(M.ncols()): 
+            R[i,j] = M[i,j]
+    return R 
+
+# Returns a vector w that is v after zero-padding to length n. 
+def zero_pad_vector(v, n): 
+    if n < len(v):
+        print('Error: v cannot be zero-padded to length n.')
+        assert(0)
+    w = zero_vector(n)
+    for i in range(len(v)):
+        w[i] = v[i]
+    return w 
+
+#Return the minimal degree vanishing polynomial over the subgroup H of F*. 
+# v_S = (x-s1)(x-s2)...(x-sn)
+def vanishing_polynomial(S): 
     if isinstance(S, sage.groups.group.Group): 
         S = group_to_list(S)
-        
     prod = R(1)
     for s in S:
         if s == F(0):
@@ -59,14 +111,25 @@ def vanishing_polynomial(S):
             prod *= R.lagrange_polynomial([(F(s), 0), (0, -F(s))])  # = prod*(X - s)     
     return prod 
 
-# Returns the Lagrange polynomial defined over the set S contained in F* at point a \in F*. 
-def lagrange_polynomial(S, a): 
+# Return the polynomial v_S / (X - a). 
+def d_vanishing_polynomial(S, a): 
+    if isinstance(S, sage.groups.group.Group): 
+        S = group_to_list(S)
+    v_S = vanishing_polynomial(S) 
+    x_minus_a = R.lagrange_polynomial([(F(a), 0), (0, -F(a))]) # (X - a)
+    q, r = v_S.quo_rem(x_minus_a) # q = v_S / (x-a)
+    if r != R(0): 
+        print('Error: Remainder is not zero.')
+        assert(0)
+    return q
     
+# Returns the Lagrange polynomial defined over the set S \subset F* at point a \in F*. 
+def lagrange_polynomial(S, a): 
     if isinstance(S, sage.groups.group.Group): 
         S = group_to_list(S) # 
     if a not in S: 
         print('Error: a is not an element of S.')
-        exit(1)
+        assert(0)
         
     f = vanishing_polynomial(S)
     g=None
