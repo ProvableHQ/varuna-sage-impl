@@ -6,21 +6,37 @@ from primitives import Matrix
 class Prover:
     
     #Pre-processing 
-    def __init__(self, K, H, A, B, C, x, w):
-        
-        self.A = Matrix(A)
-        self.B = Matrix(B)
-        self.C = Matrix(C)
-        
-        z = x
-        z.extend(w)
-        self.z = Vector(z) # z = (x, w)
-        
-        self.K = Group(K)
+    def __init__(self, A, B, C, K, K_A, K_B, K_C, H, z):
+        self.A = A
+        self.B = B
+        self.C = C
+        self.z = z 
+
         self.H = H
-        self.K_A = self.A.K
-        self.K_B = self.B.K
-        self.K_C = self.C.K
-        self.z_A = Vector(self.A.to_matrix * self.z.to_vector)
-        self.z_B = Vector(self.B.to_matrix * self.z.to_vector)
-        self.z_C = Vector(self.C.to_matrix * self.z.to_vector) 
+        self.K = K
+        self.K_A = K_A
+        self.K_B = K_B
+        self.K_C = K_C
+        
+        if self.K_A != self.A.K: 
+            print('Error: K_A is not the same as A.K.')
+            assert(0)
+        if self.K_B != self.B.K: 
+            print('Error: K_B is not the same as B.K.')
+            assert(0)
+        if self.K_C != self.C.K: 
+            print('Error: K_C is not the same as C.K.')
+            assert(0)
+            
+        self.z_A_lde = self.z_M(self.A, self.H, self.z)
+        self.z_B_lde = self.z_M(self.B, self.H, self.z)
+        self.z_C_lde = self.z_M(self.C, self.H, self.z)
+    
+    #Return the LDE of the matrix-vector product Mz. 
+    #M is an instance of class 'Matrix' and z is an instance of class 'Vector' and H is an instance of class 'Group'.
+    @staticmethod
+    def z_M(M, H, z): 
+        acc = 0 
+        for h in H.to_list: 
+            acc += M.bivariate_matrix_polynomial(None, h)*z.low_degree_extension(x=h)
+        return acc 
