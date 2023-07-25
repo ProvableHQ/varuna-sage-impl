@@ -95,4 +95,99 @@ class Prover:
             assert(0) 
         
         return (sigma, h_1, g_1) 
+
+    def Round_4_lhs(self, gamma, beta): 
+            
+        omega_A = self.A.bivariate_matrix_polynomial(gamma)(x=beta)
+        omega_B = self.B.bivariate_matrix_polynomial(gamma)(x=beta)
+        omega_C = self.C.bivariate_matrix_polynomial(gamma)(x=beta)
+        return (omega_A, omega_B, omega_C)
+    
+    # PIOP 3: Rational sumcheck
+    def Round_5_lhs(self, omegas, gamma, beta): 
+            
+        omega_A = omegas[0]
+        omega_B = omegas[1]
+        omega_C = omegas[2]
+        
+        ## A
+        pA = self.H.vanishing_polynomial(x=gamma)*self.H.vanishing_polynomial(x=beta)*self.A.val()
+        qA = (gamma - self.A.row())*(beta - self.A.col())
+        points_A = [] 
+        for k in self.K_A.to_list:
+            points_A.append((F(k), (pA/qA)(x=k)))
+        xgA = R.lagrange_polynomial(points_A) - omega_A / self.K_A.order
+        gA, rA = xgA.quo_rem(R.lagrange_polynomial([(1, 1), (-1, -1)]))
+        fA = xgA + omega_A / self.K_A.order
+        if rA != R(0):
+            print('Error: Remainder is not zero.')
+            assert(0)
+        hA, sA = (pA - qA*fA).quo_rem(self.K_A.vanishing_polynomial())
+        if pA - qA*fA != hA*self.K_A.vanishing_polynomial(): 
+            print('Error')
+            assert(0)
+        if sA != R(0):
+            print('Error: Remainder is not zero.')
+            assert(0)
+        
+        ## B
+        pB = self.H.vanishing_polynomial(x=gamma)*self.H.vanishing_polynomial(x=beta)*self.B.val()
+        qB = (gamma - self.B.row())*(beta - self.B.col())
+        points_B = [] 
+        for k in self.K_B.to_list:
+            points_B.append((F(k), (pB/qB)(x=k)))
+        xgB = R.lagrange_polynomial(points_B) - omega_B / self.K_B.order
+        gB, rB = xgB.quo_rem(R.lagrange_polynomial([(1, 1), (-1, -1)]))
+        fB = xgB + omega_B / self.K_B.order
+        if rB != R(0):
+            print('Error: Remainder is not zero.')
+            assert(0) 
+        hB, sB = (pB - qB*fB).quo_rem(self.K_B.vanishing_polynomial())
+        if pB - qB*fB != hB*self.K_B.vanishing_polynomial(): 
+            print('Error')
+            assert(0)
+        if sB != R(0):
+            print('Error: Remainder is not zero.')
+            assert(0)
+      
+        ## C
+        pC = self.H.vanishing_polynomial(x=gamma)*self.H.vanishing_polynomial(x=beta)*self.C.val()
+        qC = (gamma - self.C.row())*(beta - self.C.col())
+        points_C = [] 
+        for k in self.K_C.to_list:
+            points_C.append((F(k), (pC/qC)(x=k)))
+        xgC = R.lagrange_polynomial(points_C) - omega_C / self.K_C.order
+        gC, rC = xgC.quo_rem(R.lagrange_polynomial([(1, 1), (-1, -1)]))
+        fC = xgC + omega_C / self.K_C.order
+        if rC != R(0):
+            print('Error: Remainder is not zero.')
+            assert(0)
+        hC, sC = (pC - qC*fC).quo_rem(self.K_C.vanishing_polynomial())
+        if pC - qC*fC != hC*self.K_C.vanishing_polynomial(): 
+            print('Error')
+            assert(0)
+        if sC != R(0):
+            print('Error: Remainder is not zero.')
+            assert(0)
+      
+        return (hA, hB, hC, gA, gB, gC)
+        
+    # NOTE: I changed this from our spec.  
+    def Round_6_lhs(self, hs, deltas): 
+        hA = hs[0]
+        hB = hs[1]
+        hC = hs[2]
+        
+        delta_A = deltas[0]
+        delta_B = deltas[1]
+        delta_C = deltas[2]
+        
+        h2 = delta_A * self.K_A.selector * hA * self.K_A.vanishing_polynomial()
+        h2 += delta_B * self.K_B.selector * hB * self.K_B.vanishing_polynomial()
+        h2 += delta_C * self.K_C.selector * hC * self.K_C.vanishing_polynomial()
+        
+        h2, r2 = h2.quo_rem(self.K.vanishing_polynomial()) # divide through by v_K 
+        
+        return h2
      
+
