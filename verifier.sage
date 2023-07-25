@@ -48,5 +48,73 @@ class Verifier:
         while beta in self.H.to_list: 
             beta = Fstar.random_element()
         return beta
+
+    def Round_4_rhs(self, z, sigma, h1, g1, omegas, etas): 
+            
+        eta_A = etas[0]
+        eta_B = etas[1]
+        eta_C = etas[2]
+            
+        omega_A = omegas[0]
+        omega_B = omegas[1]
+        omega_C = omegas[2]
+        
+        lhs = sigma/self.H.order - eta_A * omega_A * z(x=beta) 
+        lhs -= eta_B * omega_B * z(x=beta)
+        lhs -= eta_C * omega_C * z(x=beta)
+            
+        rhs = h1(x=beta) * self.H.vanishing_polynomial(x=beta) + beta * g1(x=beta)
+        
+        if lhs != rhs: 
+            print('Error: Verification failed.')
+            assert(0)
+                
+        return 1 
+    
+    # PIOP 3: Rational sumcheck 
+    def Round_5_rhs(self): 
+            
+        delta_A = F.random_element()
+        delta_B = F.random_element()
+        delta_C = F.random_element()
+            
+        return (delta_A, delta_B, delta_C)
+        
+    def Round_6_rhs(self, gs, gamma, beta, deltas, omegas, h2): 
+        zeta = F.random_element()
+        
+        g_A = gs[0]
+        g_B = gs[1]
+        g_C = gs[2]
+            
+        delta_A = deltas[0]
+        delta_B = deltas[1]
+        delta_C = deltas[2]
+            
+        omega_A = omegas[0]
+        omega_B = omegas[1]
+        omega_C = omegas[2]
+                
+        a_A = self.H.vanishing_polynomial(x=gamma) * self.H.vanishing_polynomial(x=beta) * self.val_A
+        b_A = (gamma - self.row_A)*(beta - self.col_A)
+        lhs = delta_A * self.K_A.selector * (a_A - b_A*(R.lagrange_polynomial([(1, 1), (-1, -1)])*g_A + omega_A / self.K_A.order))
+        
+        a_B = self.H.vanishing_polynomial(x=gamma) * self.H.vanishing_polynomial(x=beta) * self.val_B
+        b_B = (gamma - self.row_B)*(beta - self.col_B)
+        lhs += delta_B * self.K_B.selector * (a_B - b_B*(R.lagrange_polynomial([(1, 1), (-1, -1)])*g_B + omega_B / self.K_B.order))
+        
+        a_C = self.H.vanishing_polynomial(x=gamma) * self.H.vanishing_polynomial(x=beta) * self.val_C
+        b_C = (gamma - self.row_C)*(beta - self.col_C)
+        lhs += delta_C * self.K_C.selector * (a_C - b_C*(R.lagrange_polynomial([(1, 1), (-1, -1)])*g_C + omega_C / self.K_C.order))
+        
+        s, w = lhs.quo_rem(self.K.vanishing_polynomial())
+        
+        rhs = h2 * self.K.vanishing_polynomial
+        
+        if lhs(x=zeta) != rhs(x=zeta): 
+            print('Error: Verification failed.')
+            assert(0)
+        
+        return 1
         
         
