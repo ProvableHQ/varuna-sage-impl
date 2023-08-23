@@ -1,4 +1,7 @@
+# https://developer.aleo.org/advanced/the_aleo_curves/edwards_bls12#base-field
 p = 8444461749428370424248824938781546531375899335154063827935233455917409239041
+# https://developer.aleo.org/advanced/the_aleo_curves/bls12-377#base-field
+#258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458177
 F = GF(p)
 prime_factors = factor(p-1)
 R = PolynomialRing(F, 'x')
@@ -416,6 +419,7 @@ class Group:
                 print('Error: Division failed.')
                 assert(0)
             self.selector = F(G.order() / ambient.order())*q # the selector polynomial 
+
 class Indexer: 
     
     def __init__(self, A, B, C, z):
@@ -431,6 +435,15 @@ class Indexer:
         self.K_B = Group(K_B, K)
         self.K_C = Group(K_C, K)
         self.H = Group(self.index_group_vector(len(z)))
+        print("H generator: ", F(self.H.to_list[0]))
+        sorted_list = sort_by_value(self.H.to_list)
+        for h in sorted_list:
+            print("el in H", F(h))
+
+        print("K_A generator: ", F(self.K_A.to_list[0]))
+        sorted_list = sort_by_value(self.K_A.to_list)
+        for k_a in sorted_list:
+            print("el in K_A", F(k_a))
         
         self.A = Matrix(A, self.K_A, self.H)
         self.B = Matrix(B, self.K_B, self.H)
@@ -575,16 +588,24 @@ class Prover:
     #Return the LDE of the matrix-vector product Mz. 
     #M is an instance of class 'Matrix' and z is an instance of class 'Vector' and H is an instance of class 'Group'.
     @staticmethod
-    def z_M(M, H, z): 
-        acc = 0 
-        for h in H.to_list: 
+    def z_M(M, H, z):
+        acc = 0
+        for h in H.to_list:
             acc += M.bivariate_matrix_polynomial(None, h)*z.low_degree_extension(x=h)
-        return acc 
+        return acc
             
     # PIOP 1: Rowcheck  
     def Round_1_lhs(self): 
         
         f = self.z_A_lde * self.z_B_lde - self.z_C_lde
+
+        for coeff in R(self.z_A_lde): 
+            print("z_A_lde: ", coeff)
+        for coeff in R(self.z_B_lde): 
+            print("z_B_lde: ", coeff)
+        for coeff in R(self.z_C_lde): 
+            print("z_C_lde: ", coeff)
+
         h0, r = f.quo_rem(self.H.vanishing_polynomial())
         if r!= 0: 
             print('Error: Remainder is non-zero.')
@@ -934,36 +955,94 @@ def test_cases(A, B, C, z, w=None, x=None):
 
 
 
-# Generates R1CS instances of n x m matrices where z is of the form [b, b^2, b^3, ..., b^m].
-def gen_r1cs_instance(n, m, b): 
-    z = vector([b^i for i in range(1, m+1)])
+# Generates R1CS instances of n x m matrices where z is of the form [1, b^(d+2), b, b^2, ..., b, b, ...] and d is the multiplicative depth of the circuit
+def gen_r1cs_instance(n, m, b, d):
+
+    # padded_public_variables: [1, 8]
+    # private_variables: [2, 4, 2, 2]
+
+    num_mul_constraints = d - 1
+
+    # first, we generate the (public and private) witness vector belonging to our TestCircuit
+    # the public part, consisting of hardcoded 1 and the largest value
+    z = [1, b^(d+2)]
+    # the private part, consisting of increasing values
+    for i in range(1, d+2):    
+        z.append(b^i)
+    # the private part, consisting of the base value
+    for i in range(0, n - num_mul_constraints - 4):    
+        z.append(b)
+
+    print("z", z)
+    x = z[0:2]
+    w = z[2:]
+    print("x: ",x)
+    print("w: ",w)
+    X = Group(Indexer.index_group_vector(len(z)))
+    W = Group(Indexer.index_group_vector(len(z)))
+    for coeff in R(Vector(vector(x), X).low_degree_extension()): # TODO: use correct field size 
+        print("x_lde: ", coeff)
+    for coeff in R(Vector(vector(w), W).low_degree_extension()): # TODO: use correct field size 
+        print("w_lde: ", coeff)
+        
+    z = vector(z)#[b^i for i in range(1, m+1)])
+    # TODO: clean up snarkVM ordering
+    # tmp = z[0]
+    # z[0] = z[2]
+    # z[2] = tmp
+    # We initialize the matrix so we can append to it, and cut off the first row later using submatrix
     A = matrix(zero_vector(m))
     B = matrix(zero_vector(m))
     C = matrix(zero_vector(m))
-    for i in range(0, n): 
-        found = False 
-        while(not found): 
-            index1 = randint(0, m-1)
-            if m - index1 - 2 > 0: 
-                index2 = randint(0, m - index1 - 2)
-                index3 = index1 + index2 + 1
-                found = True 
-                
+
+    num_mul_constraints = d - 1
+    # Insert constraints of the form z[1]*z[2]=z[0]
+    for i in range(0, n - num_mul_constraints):
         a = zero_vector(m)
-        a[index1] = 1
+        a[2] = 1
         A = A.insert_row(A.nrows(), a)
         
         b = zero_vector(m)
-        b[index2] = 1
+        b[3] = 1
         B = B.insert_row(B.nrows(), b)
         
         c = zero_vector(m)
-        c[index3] = 1
+        c[1] = 1
         C = C.insert_row(C.nrows(), c)
+
+    # Insert constraints of the form z[i-1]*z[2]=z[i]
+    z_index = 2
+    for i in range(0, num_mul_constraints):
+        # TODO: I might need to have a special case for the first mul_depth. Would be nice to clean that weird order up a bit in snarkVM
+
+        a = zero_vector(m)
+        if i == 0:
+            a[0] = 1
+        else:
+            a[z_index] = 1
+        A = A.insert_row(A.nrows(), a)
         
+        b = zero_vector(m)
+        b[2] = 1
+        B = B.insert_row(B.nrows(), b)
+        
+        c = zero_vector(m)
+        if i == 0:
+            c[3] = 1
+        else:
+            c[z_index + 1] = 1
+        C = C.insert_row(C.nrows(), c)
+        z_index += 1
+    
+    # Take submatrices using submatrix(i,j,nr,nc), start at entry (i,j), use nr rows, nc cols
     A = A.submatrix(1, 0, n, m)
     B = B.submatrix(1, 0, n, m)
     C = C.submatrix(1, 0, n, m)
+
+    print("A: ", A)
+    print("B: ", B)
+    print("C: ", C)
+
     if (A*z).pairwise_product(B*z) != C*z: 
         print('Error: Invalid R1CS instance.')
         assert(0)
@@ -976,7 +1055,10 @@ def main():
     n = int(args[0])
     m = int(args[1])
     b = int(args[2])
-    (A, B, C, z) = gen_r1cs_instance(n, m, b)
+    d = int(args[3])
+    
+    (A, B, C, z) = gen_r1cs_instance(n, m, b, d)
+
     test_cases(A, B, C, z)
 
     A = matrix(A)
