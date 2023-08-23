@@ -44,10 +44,15 @@ def group_to_list(G):
         print('Error: The input G is not a group.')
         assert(0)
     result = []
-    g = G.0
+    g = G.0 
     for i in range(0, G.order()): 
         result.append(g**i)
-    return sort_by_value(result) 
+        
+    sorted_group = sort_by_value(result) 
+    if sorted_group[0] != F(1): 
+        print('Error: Identity element is not in group.')
+        assert(0)
+    return sorted_group[1:] + [sorted_group[0]]
 
 # Returns an element of group G of order 2^r, where r may be composite. 
 def element_order_r(G, r): 
