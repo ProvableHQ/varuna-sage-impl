@@ -1,11 +1,17 @@
-# https://developer.aleo.org/advanced/the_aleo_curves/edwards_bls12#base-field
-p = 8444461749428370424248824938781546531375899335154063827935233455917409239041
-# https://developer.aleo.org/advanced/the_aleo_curves/bls12-377#base-field
-#258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458177
+p = 258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458177
 F = GF(p)
 prime_factors = factor(p-1)
 R = PolynomialRing(F, 'x')
 Fstar = F.unit_group()
+GEN = 146552004846884389553264564610149105174701957497228680529098805315416492923550540437026734404078567406251254115855
+#Fstar._values = (GEN,)
+TWO_ADICITY = 46
+ODD_FACTOR = 3675842578061421676390135839012792950148785745837396071634149488243117337281387659330802195819009059
+print('generator exponent', F(Fstar.gen())^9223372036854775806)
+
+
+TWO_ADIC_ROOT_OF_UNITY = pow(Fstar.gen(), ODD_FACTOR)
+
 
 """
 Algebraic Primitives, Part 1 
@@ -80,6 +86,17 @@ def element_order_r(G, r):
             print('Error: Element order 2^r not found.')
             assert(0)
     return h 
+
+# Returns a primitive '2^n'th root of unity. 
+def get_root_of_unity(G, n): 
+    omega = TWO_ADIC_ROOT_OF_UNITY 
+    #if omega^(2^TWO_ADICITY) != F(1): 
+        #print('Error: Two-adic root of unity is not of order 2^TWO_ADICITY.')
+        #assert(0)
+    acc = Fstar.one()
+    for _ in range(TWO_ADICITY - n): 
+        acc *= omega^2 
+    return acc
 
 # Checks if the order of a point P is 2^r. 
 # Returns False if 2^r' * P = 1 for 0 < r' < r and True otherwise. 
@@ -232,10 +249,10 @@ class Matrix:
             print('Error: Sparse norm of M is greater than |F*|.')
             assert(0)
         c = ceil(log(n, 2).n())
-        P = element_order_r(Fstar, c)
+        P = get_root_of_unity(Fstar, c)
         while P == None and c <= prime_factors[0][1]: 
             c+=1 
-            P = element_order_r(Fstar, c)
+            P = get_root_of_unity(Fstar, c)
         if c > prime_factors[0][1]: 
             print('Error: 2^c is not a factor of |F*|.')
             assert(0)
@@ -366,10 +383,10 @@ class Vector:
             print('Error: Length of vector is greater than |F*|.')
             assert(0)
         c = ceil(log(n, 2).n())
-        P = element_order_r(Fstar, c)
+        P = get_root_of_unity(Fstar, c)
         while P == None and c <= prime_factors[0][1]: 
             c+=1 
-            P = element_order_r(Fstar, c)
+            P = get_root_of_unity(Fstar, c)
         if c > prime_factors[0][1]: 
             print('Error: 2^c is not a factor of |F*|.')
             assert(0)
@@ -419,7 +436,6 @@ class Group:
                 print('Error: Division failed.')
                 assert(0)
             self.selector = F(G.order() / ambient.order())*q # the selector polynomial 
-
 class Indexer: 
     
     def __init__(self, A, B, C, z):
@@ -435,15 +451,6 @@ class Indexer:
         self.K_B = Group(K_B, K)
         self.K_C = Group(K_C, K)
         self.H = Group(self.index_group_vector(len(z)))
-        print("H generator: ", F(self.H.to_list[0]))
-        sorted_list = sort_by_value(self.H.to_list)
-        for h in sorted_list:
-            print("el in H", F(h))
-
-        print("K_A generator: ", F(self.K_A.to_list[0]))
-        sorted_list = sort_by_value(self.K_A.to_list)
-        for k_a in sorted_list:
-            print("el in K_A", F(k_a))
         
         self.A = Matrix(A, self.K_A, self.H)
         self.B = Matrix(B, self.K_B, self.H)
@@ -486,10 +493,10 @@ class Indexer:
         if Fstar.order() % 2^c != 0: 
             print('Error: 2^c does not divide |F*|.')
             assert(0)   
-        P = element_order_r(Fstar, c)
+        P = get_root_of_unity(Fstar, c)
         while P == None and c < prime_factors[0][1]: 
             c+=1 
-            P = element_order_r(Fstar, c)
+            P = get_root_of_unity(Fstar, c)
         if P == None: 
             print('Error: No element found.')
             assert(0)
@@ -501,10 +508,10 @@ class Indexer:
         if Fstar.order() % 2^c_A != 0: 
             print('Error: 2^c_A does not divide |F*|.')
             assert(0)
-        P_A = element_order_r(K, c_A)
+        P_A = get_root_of_unity(K, c_A)
         while P_A == None and c_A < c: 
             c_A +=1 
-            P_A = element_order_r(K, c_A)
+            P_A = get_root_of_unity(K, c_A)
         if P_A == None: 
             P_A = P
         
@@ -513,10 +520,10 @@ class Indexer:
         if Fstar.order() % 2^c_B != 0: 
             print('Error: 2^c_B does not divide |F*|.')
             assert(0)
-        P_B = element_order_r(K, c_B)
+        P_B = get_root_of_unity(K, c_B)
         while P_B == None and c_B < c: 
             c_B +=1 
-            P_B = element_order_r(K_B, c_B)
+            P_B = get_root_of_unity(K_B, c_B)
         if P_B == None: 
             P_B = P
         
@@ -525,10 +532,10 @@ class Indexer:
         if Fstar.order() % 2^c_C != 0: 
             print('Error: 2^c_C does not divide |F*|.')
             assert(0)
-        P_C = element_order_r(K, c_C)
+        P_C = get_root_of_unity(K, c_C)
         while P_C == None and c_C < c: 
             c_C +=1 
-            P_C = element_order_r(K, c_C)
+            P_C = get_root_of_unity(K, c_C)
         if P_C == None: 
             P_C = P
         
@@ -547,10 +554,10 @@ class Indexer:
             print('Error: Length of vector is greater than |F*|.')
             assert(0)
         c = ceil(log(n, 2).n())
-        P = element_order_r(Fstar, c)
+        P = get_root_of_unity(Fstar, c)
         while P == None and c <= prime_factors[0][1]: 
             c+=1 
-            P = element_order_r(Fstar, c)
+            P = get_root_of_unity(Fstar, c)
         if c > prime_factors[0][1]: 
             print('Error: 2^c is not a factor of |F*|.')
             assert(0)
@@ -588,24 +595,16 @@ class Prover:
     #Return the LDE of the matrix-vector product Mz. 
     #M is an instance of class 'Matrix' and z is an instance of class 'Vector' and H is an instance of class 'Group'.
     @staticmethod
-    def z_M(M, H, z):
-        acc = 0
-        for h in H.to_list:
+    def z_M(M, H, z): 
+        acc = 0 
+        for h in H.to_list: 
             acc += M.bivariate_matrix_polynomial(None, h)*z.low_degree_extension(x=h)
-        return acc
+        return acc 
             
     # PIOP 1: Rowcheck  
     def Round_1_lhs(self): 
         
         f = self.z_A_lde * self.z_B_lde - self.z_C_lde
-
-        for coeff in R(self.z_A_lde): 
-            print("z_A_lde: ", coeff)
-        for coeff in R(self.z_B_lde): 
-            print("z_B_lde: ", coeff)
-        for coeff in R(self.z_C_lde): 
-            print("z_C_lde: ", coeff)
-
         h0, r = f.quo_rem(self.H.vanishing_polynomial())
         if r!= 0: 
             print('Error: Remainder is non-zero.')
@@ -955,94 +954,36 @@ def test_cases(A, B, C, z, w=None, x=None):
 
 
 
-# Generates R1CS instances of n x m matrices where z is of the form [1, b^(d+2), b, b^2, ..., b, b, ...] and d is the multiplicative depth of the circuit
-def gen_r1cs_instance(n, m, b, d):
-
-    # padded_public_variables: [1, 8]
-    # private_variables: [2, 4, 2, 2]
-
-    num_mul_constraints = d - 1
-
-    # first, we generate the (public and private) witness vector belonging to our TestCircuit
-    # the public part, consisting of hardcoded 1 and the largest value
-    z = [1, b^(d+2)]
-    # the private part, consisting of increasing values
-    for i in range(1, d+2):    
-        z.append(b^i)
-    # the private part, consisting of the base value
-    for i in range(0, n - num_mul_constraints - 4):    
-        z.append(b)
-
-    print("z", z)
-    x = z[0:2]
-    w = z[2:]
-    print("x: ",x)
-    print("w: ",w)
-    X = Group(Indexer.index_group_vector(len(z)))
-    W = Group(Indexer.index_group_vector(len(z)))
-    for coeff in R(Vector(vector(x), X).low_degree_extension()): # TODO: use correct field size 
-        print("x_lde: ", coeff)
-    for coeff in R(Vector(vector(w), W).low_degree_extension()): # TODO: use correct field size 
-        print("w_lde: ", coeff)
-        
-    z = vector(z)#[b^i for i in range(1, m+1)])
-    # TODO: clean up snarkVM ordering
-    # tmp = z[0]
-    # z[0] = z[2]
-    # z[2] = tmp
-    # We initialize the matrix so we can append to it, and cut off the first row later using submatrix
+# Generates R1CS instances of n x m matrices where z is of the form [b, b^2, b^3, ..., b^m].
+def gen_r1cs_instance(n, m, b): 
+    z = vector([b^i for i in range(1, m+1)])
     A = matrix(zero_vector(m))
     B = matrix(zero_vector(m))
     C = matrix(zero_vector(m))
-
-    num_mul_constraints = d - 1
-    # Insert constraints of the form z[1]*z[2]=z[0]
-    for i in range(0, n - num_mul_constraints):
+    for i in range(0, n): 
+        found = False 
+        while(not found): 
+            index1 = randint(0, m-1)
+            if m - index1 - 2 > 0: 
+                index2 = randint(0, m - index1 - 2)
+                index3 = index1 + index2 + 1
+                found = True 
+                
         a = zero_vector(m)
-        a[2] = 1
+        a[index1] = 1
         A = A.insert_row(A.nrows(), a)
         
         b = zero_vector(m)
-        b[3] = 1
+        b[index2] = 1
         B = B.insert_row(B.nrows(), b)
         
         c = zero_vector(m)
-        c[1] = 1
+        c[index3] = 1
         C = C.insert_row(C.nrows(), c)
-
-    # Insert constraints of the form z[i-1]*z[2]=z[i]
-    z_index = 2
-    for i in range(0, num_mul_constraints):
-        # TODO: I might need to have a special case for the first mul_depth. Would be nice to clean that weird order up a bit in snarkVM
-
-        a = zero_vector(m)
-        if i == 0:
-            a[0] = 1
-        else:
-            a[z_index] = 1
-        A = A.insert_row(A.nrows(), a)
         
-        b = zero_vector(m)
-        b[2] = 1
-        B = B.insert_row(B.nrows(), b)
-        
-        c = zero_vector(m)
-        if i == 0:
-            c[3] = 1
-        else:
-            c[z_index + 1] = 1
-        C = C.insert_row(C.nrows(), c)
-        z_index += 1
-    
-    # Take submatrices using submatrix(i,j,nr,nc), start at entry (i,j), use nr rows, nc cols
     A = A.submatrix(1, 0, n, m)
     B = B.submatrix(1, 0, n, m)
     C = C.submatrix(1, 0, n, m)
-
-    print("A: ", A)
-    print("B: ", B)
-    print("C: ", C)
-
     if (A*z).pairwise_product(B*z) != C*z: 
         print('Error: Invalid R1CS instance.')
         assert(0)
@@ -1055,10 +996,7 @@ def main():
     n = int(args[0])
     m = int(args[1])
     b = int(args[2])
-    d = int(args[3])
-    
-    (A, B, C, z) = gen_r1cs_instance(n, m, b, d)
-
+    (A, B, C, z) = gen_r1cs_instance(n, m, b)
     test_cases(A, B, C, z)
 
     A = matrix(A)
