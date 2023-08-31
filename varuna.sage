@@ -3,11 +3,13 @@ F = GF(p)
 prime_factors = factor(p-1)
 R = PolynomialRing(F, 'x')
 Fstar = F.unit_group()
-GEN = 146552004846884389553264564610149105174701957497228680529098805315416492923550540437026734404078567406251254115855
-Fstar._values = (GEN,)
+GEN = F(146552004846884389553264564610149105174701957497228680529098805315416492923550540437026734404078567406251254115855)
+Fstar._values = (F(GEN),)
 TWO_ADICITY = 46
-ODD_FACTOR = 3675842578061421676390135839012792950148785745837396071634149488243117337281387659330802195819009059
+ODD_FACTOR = F(3675842578061421676390135839012792950148785745837396071634149488243117337281387659330802195819009059)
+ODD_FACTOR_BIN = list(reversed(bin(3675842578061421676390135839012792950148785745837396071634149488243117337281387659330802195819009059)[2:]))
 TWO_ADIC_ROOT_OF_UNITY = Fstar.gen()^ODD_FACTOR
+
 
 """
 Algebraic Primitives, Part 1 
@@ -86,13 +88,10 @@ def element_order_r(G, r):
 # Returns a primitive '2^n'th root of unity. 
 def get_root_of_unity(G, n): 
     omega = TWO_ADIC_ROOT_OF_UNITY 
-    #if omega^(2^TWO_ADICITY) != F(1): 
-        #print('Error: Two-adic root of unity is not of order 2^TWO_ADICITY.')
-        #assert(0)
-    acc = Fstar.one()
-    for _ in range(TWO_ADICITY - n): 
-        acc *= omega^2 
-    return acc
+    if omega^(2^TWO_ADICITY) != F(1): 
+        print('Error: Two-adic root of unity is not of order 2^TWO_ADICITY.')
+        assert(0)
+    return pow(omega, 2^(TWO_ADICITY - n)) 
 
 # Checks if the order of a point P is 2^r. 
 # Returns False if 2^r' * P = 1 for 0 < r' < r and True otherwise. 
@@ -554,6 +553,7 @@ class Indexer:
         while P == None and c <= prime_factors[0][1]: 
             c+=1 
             P = get_root_of_unity(Fstar, c)
+
         if c > prime_factors[0][1]: 
             print('Error: 2^c is not a factor of |F*|.')
             assert(0)
