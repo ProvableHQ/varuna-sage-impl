@@ -1,14 +1,17 @@
-p = 258664426012969094010652733694893533536393512754914660539884262666720468348340822774968888139573360124440321458177
+p = 8444461749428370424248824938781546531375899335154063827935233455917409239041
 F = GF(p)
 prime_factors = factor(p-1)
 R = PolynomialRing(F, 'x')
 Fstar = F.unit_group()
-GEN = F(146552004846884389553264564610149105174701957497228680529098805315416492923550540437026734404078567406251254115855)
-Fstar._values = (F(GEN),)
-TWO_ADICITY = 46
-ODD_FACTOR = F(3675842578061421676390135839012792950148785745837396071634149488243117337281387659330802195819009059)
-ODD_FACTOR_BIN = list(reversed(bin(3675842578061421676390135839012792950148785745837396071634149488243117337281387659330802195819009059)[2:]))
+GEN = F.multiplicative_generator()
+Fstar._values = (GEN,)
+TWO_ADICITY = 47
+ODD_FACTOR = F(60001509534603559531609739528203892656505753216962260608619555)
 TWO_ADIC_ROOT_OF_UNITY = Fstar.gen()^ODD_FACTOR
+
+if ODD_FACTOR * 2^TWO_ADICITY != p-1: 
+    print('Error: Two-adicity is incorrect.')
+    assert(0)
 
 
 """
@@ -17,7 +20,8 @@ Algebraic Primitives, Part 1
 """
 
 randomness_to_file = {}
-test_elements_to_file = {}
+output_elements_to_file = {}
+group_elements_to_file = {} 
 
 # Samples a random element from G, which is either of type 'group' or 'subgroup'
 # In Sage, there is no method to sample an element from an object of type 'subgroup'
@@ -51,15 +55,11 @@ def group_to_list(G):
         print('Error: The input G is not a group.')
         assert(0)
     result = []
-    g = G.0 
+    g = G.0
     for i in range(0, G.order()): 
         result.append(g**i)
-        
-    sorted_group = sort_by_value(result) 
-    if sorted_group[0] != F(1): 
-        print('Error: Identity element is not in group.')
-        assert(0)
-    return sorted_group[1:] + [sorted_group[0]]
+    #return result[1:] + [result[0]]
+    return result 
 
 # Returns an element of group G of order 2^r, where r may be composite. 
 def element_order_r(G, r): 
@@ -403,13 +403,14 @@ class Vector:
 class Group: 
     
     # ambient is the ambient group of G, i.e. G <= 'ambient' as groups. 
-    def __init__(self, G, ambient=None): 
+    def __init__(self, G, gen=None, ambient=None): 
         
         if not isinstance(G, sage.groups.group.Group): 
             print('Error: G is not a group object.')
             assert(0)
       
         self.to_group = G
+        self.gen = gen
         self.to_list = group_to_list(G)
         self.vanishing_polynomial = vanishing_polynomial(G)
         
@@ -440,12 +441,18 @@ class Indexer:
         n_B = matrix_sparse_norm(B)
         n_C = matrix_sparse_norm(C)
         (K, K_A, K_B, K_C) = self.index_group_matrix(n_A, n_B, n_C)
-        
+        H = self.index_group_vector(len(z)) 
         self.K = Group(K)
-        self.K_A = Group(K_A, K)
-        self.K_B = Group(K_B, K)
-        self.K_C = Group(K_C, K)
-        self.H = Group(self.index_group_vector(len(z)))
+        self.K_A = Group(K_A, ambient=K)
+        self.K_B = Group(K_B, ambient=K)
+        self.K_C = Group(K_C, ambient=K)
+        self.H = Group(H)
+      
+        group_elements_to_file['K'] = self.K.to_list
+        group_elements_to_file['K_A'] = self.K_A.to_list
+        group_elements_to_file['K_B'] = self.K_B.to_list
+        group_elements_to_file['K_C'] = self.K_C.to_list
+        group_elements_to_file['H'] = self.H.to_list
         
         self.A = Matrix(A, self.K_A, self.H)
         self.B = Matrix(B, self.K_B, self.H)
@@ -459,19 +466,15 @@ class Indexer:
     # Otherwise (i.e. if M.nrows() > len(z')), we zero-pad z' to be of length M.nrows() and make M a square M.nrows() x M.nrows() matrix. 
     # This ensures that H can index into [0, ..., M.nrows() - 1], [0, ..., M.ncols() - 1], and z'. 
     def zero_padding(self, A, B, C, z):
-        H = self.index_group_vector(len(z)) 
-        if log(H.order(), 2).n() not in ZZ: 
-            print('Error: |H| is not a power of 2.')
-            assert(0)
-            
-        z_prime_len = H.order()
+
+        c = ceil(log(len(z), 2).n()) 
+        z_prime_len = 2^c 
         max_nrows = max(A.nrows(), B.nrows(), C.nrows()) 
-        n = max(z_prime_len, max_nrows)
-        
-        A = zero_pad_matrix(A, n)
-        B = zero_pad_matrix(B, n)
-        C = zero_pad_matrix(C, n)
-        z = zero_pad_vector(z, n)
+        n = ceil(log(max(z_prime_len, max_nrows), 2).n()) 
+        A = zero_pad_matrix(A, 2^n)
+        B = zero_pad_matrix(B, 2^n)
+        C = zero_pad_matrix(C, 2^n)
+        z = zero_pad_vector(z, 2^n)
         
         return (A, B, C, z)
             
@@ -557,8 +560,9 @@ class Indexer:
         if c > prime_factors[0][1]: 
             print('Error: 2^c is not a factor of |F*|.')
             assert(0)
+
         H = Fstar.subgroup([P])
-        return H
+        return (H)
 class Prover:
     
     #Pre-processing 
@@ -609,8 +613,8 @@ class Prover:
             print('Error: Division failed.')
             assert(0) 
             
-        test_elements_to_file['z_lde'] = self.z.low_degree_extension
-        test_elements_to_file['h_0'] = h0
+        output_elements_to_file['z_lde'] = self.z.low_degree_extension
+        output_elements_to_file['h_0'] = h0
         
         return (self.z.low_degree_extension, h0) 
     
@@ -653,9 +657,9 @@ class Prover:
             print('Error: Division failed')
             assert(0) 
         
-        test_elements_to_file['sigma'] = sigma 
-        test_elements_to_file['h1'] = h_1
-        test_elements_to_file['g1'] = g_1
+        output_elements_to_file['sigma'] = sigma 
+        output_elements_to_file['h1'] = h_1
+        output_elements_to_file['g1'] = g_1
         
         return (sigma, h_1, g_1) 
      
@@ -665,9 +669,9 @@ class Prover:
         omega_B = self.B.bivariate_matrix_polynomial(gamma)(x=beta)
         omega_C = self.C.bivariate_matrix_polynomial(gamma)(x=beta)
         
-        test_elements_to_file['omegaA'] = omega_A 
-        test_elements_to_file['omegaB'] = omega_B 
-        test_elements_to_file['omegaC'] = omega_C  
+        output_elements_to_file['omegaA'] = omega_A 
+        output_elements_to_file['omegaB'] = omega_B 
+        output_elements_to_file['omegaC'] = omega_C  
         
         return (omega_A, omega_B, omega_C)
     
@@ -747,12 +751,12 @@ class Prover:
             print('Error: Degree of gC or hC exceeds maximum bound.')
             assert(0)
         
-        test_elements_to_file['hA'] = hA
-        test_elements_to_file['hB'] = hB
-        test_elements_to_file['hC'] = hC 
-        test_elements_to_file['gA'] = gA
-        test_elements_to_file['gB'] = gB
-        test_elements_to_file['gC'] = gC 
+        output_elements_to_file['hA'] = hA
+        output_elements_to_file['hB'] = hB
+        output_elements_to_file['hC'] = hC 
+        output_elements_to_file['gA'] = gA
+        output_elements_to_file['gB'] = gB
+        output_elements_to_file['gC'] = gC 
         
         return (hA, hB, hC, gA, gB, gC)
         
@@ -772,7 +776,7 @@ class Prover:
         
         h2, r2 = h2.quo_rem(self.K.vanishing_polynomial()) # divide through by v_K 
         
-        test_elements_to_file['h2'] = h2 
+        output_elements_to_file['h2'] = h2 
         
         return h2
 class Verifier: 
@@ -989,15 +993,27 @@ def gen_r1cs_instance(n, m, b):
 
 def main(): 
     args = sys.argv[1:]
-    n = int(args[0])
-    m = int(args[1])
-    b = int(args[2])
-    (A, B, C, z) = gen_r1cs_instance(n, m, b)
-    test_cases(A, B, C, z)
+    
+    if args[0] == 'custom': 
+        # custom test case  
+        A = matrix([[0, 1, 0, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0], [0, 1, 0, 0, 1, 0, 0], [5, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0]])
+        B = matrix([[0, 1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]])
+        C = matrix([[0, 0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1, 0], [0, 0, 1, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]])
+        x = vector([1, 3, 35])
+        w = vector([9, 27, 30, 0])
+        z = vector([1, 3, 35, 9, 27, 30, 0])
+        test_cases(A, B, C, z, w, x)
+    else: 
+        n = int(args[0])
+        m = int(args[1])
+        b = int(args[2])
+        d = int(args[3])
+        (A, B, C, z) = gen_r1cs_instance(n, m, b)
+        A = matrix(A)
+        B = matrix(B)
+        C = matrix(C)
+        test_cases(A, B, C, z)
 
-    A = matrix(A)
-    B = matrix(B)
-    C = matrix(C)
     # Write r1cs instance to test file 
     with open('r1cs.txt', 'w') as f_r1cs:
         f_r1cs.write('A')
@@ -1028,7 +1044,7 @@ def main():
         f_r1cs.write('\n')
         for i in range(0, len(z)): 
             f_r1cs.write(str(z[i]) + ', ')
-        
+
     f_r1cs.close()
 
     # Write randomness and test elements to file  
@@ -1042,9 +1058,9 @@ def main():
     f_r.close()
 
 
-    with open('test.txt', 'w') as f_t:
-        for key in test_elements_to_file: 
-            value = test_elements_to_file[key]
+    with open('outputs.txt', 'w') as f_t:
+        for key in output_elements_to_file: 
+            value = output_elements_to_file[key]
             f_t.write(str(key) + ' ') 
             for coeff in R(value): 
                 f_t.write(str(coeff) + ',')         
@@ -1052,6 +1068,18 @@ def main():
             f_t.write('\n')
         
     f_t.close()
+
+
+    with open('groups.txt', 'w') as f_g:
+        for key in group_elements_to_file: 
+            group = group_elements_to_file[key]
+            f_g.write(str(key) + ' ') 
+            for g in group: 
+                f_g.write(str(F(g))+ ',')         
+            f_g.write('\n')
+            f_g.write('\n')
+
+    f_g.close()
 
 
 if __name__ == "__main__":
