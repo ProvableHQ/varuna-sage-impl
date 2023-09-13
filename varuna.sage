@@ -125,6 +125,7 @@ def zero_pad_matrix(M, n):
 
 # Returns a vector w that is v after zero-padding to length n. 
 def zero_pad_vector(v, n): 
+    assert(v != None)
     if n < len(v):
         print('Error: v cannot be zero-padded to length n.')
         assert(0)
@@ -187,7 +188,16 @@ def lagrange_polynomial(S, a):
         print('Error: Euclidean division failed.')
         assert(0)
     
-    return q/q(x=a) 
+    return q/q(x=a)
+
+def reindex_by_subdomain(self, other, index):
+    period = self.order / other.order
+    if index < other.order:
+        return index * period
+    else:
+        i = index - other.order
+        x = period - 1
+        return i + (i / x) + 1
 
 """
 
@@ -198,7 +208,7 @@ Matrix, Vector, and Group Objects.
 
 class Matrix:
     
-    def __init__(self, M, K, H):
+    def __init__(self, M, K, H, X):
         
         M = matrix(M)
         self.to_matrix = M
@@ -209,6 +219,7 @@ class Matrix:
             
         self.K = K 
         self.H = H
+        self.X = X
         self.sparse_norm = matrix_sparse_norm(self.to_matrix)# the number of non-zero entries in M
         
         if matrix_sparse_norm(self.to_matrix) != matrix_sparse_norm(M): 
@@ -299,8 +310,10 @@ class Matrix:
         points = []
         for k in self.K.to_list:
             h = random_element(self.H.to_group)
-            if k in self.K_to_RC.keys(): 
-                h = self.C_to_H[self.K_to_RC[k][1]] # maps k to its corresponding col index, then sends the col index to its corresponding element in H
+            if k in self.K_to_RC.keys():
+                col_index = self.K_to_RC[k][1]
+                col_index =  reindex_by_subdomain(self.H, self.X, col_index)
+                h = self.C_to_H[col_index] # maps k to its corresponding col index, then sends the col index to its corresponding element in H
             points.append((F(k), F(h)))
         f = R.lagrange_polynomial(points)
         return f
@@ -321,37 +334,43 @@ class Matrix:
         f = R.lagrange_polynomial(points)
         return f
     
-        
     # Returns the bivariate polynomial representation of matrix M evaluated at either x or y.
     # i.e. this will return a univariate polynomial of the form M(alpha, x) or M(x, beta) or M(alpha, beta).
-    def bivariate_matrix_polynomial(self, X=None, Y=None): 
-            
+    def bivariate_matrix_polynomial(self, X=None, Y=None, label=None, input_domain=None): 
         if X == None and Y == None: 
             print('Error: X and Y cannot both be None.')
             assert(0)
-        acc = 0 
-        if X != None and Y == None: 
-            for k in self.K.to_list: 
-                if k not in self.K_to_RC.keys():  
-                    continue 
-                f = d_vanishing_polynomial(self.H.to_group, self.row(x=k))(x=X)
-                g = d_vanishing_polynomial(self.H.to_group, self.col(x=k))
-                acc += self.val(x=k)*f*g         
-        elif X == None and Y != None: 
-            for k in self.K.to_list: 
-                if k not in self.K_to_RC.keys():  
-                    continue 
-                f = d_vanishing_polynomial(self.H.to_group, self.row(x=k))
-                g = d_vanishing_polynomial(self.H.to_group, self.col(x=k))(x=Y)
-                acc += self.val(x=k)*f*g         
-        else: 
-            for k in self.K.to_list: 
-                if k not in self.K_to_RC.keys():  
-                    continue 
-                f = d_vanishing_polynomial(self.H.to_group, self.row(x=k))(x=X)
-                g = d_vanishing_polynomial(self.H.to_group, self.col(x=k))(x=Y)
-                acc += self.val(x=k)*f*g         
-        return acc 
+        poly = 0 
+        if X != None and Y == None:
+            m = self.to_matrix
+            variable_domain = self.H
+
+            # TODO: this transpose generator should be a member function of Matrix
+            transpose = [[None for _ in range(m.ncols())] for _ in range(m.nrows())] # TODO: order might be reversed
+            for (row_index, row) in enumerate(m):
+                for (col_index, val) in enumerate(row):
+                    c_i = reindex_by_subdomain(variable_domain, input_domain, col_index)
+                    transpose[c_i][row_index] = val
+
+            m_at_alpha_evals = []
+            for i in range(len(transpose)):
+                sum_for_col = 0
+                for j in range(len(transpose[i])):
+                    val = transpose[i][j]
+                    if val != 0:
+                        assert(self.H.to_list[j] == self.K.to_list[j]) # TODO: this won't hold for all circuits, and then the groups below may need to be adjusted
+                        k = self.K.to_list[j]
+                        row_at_k = self.row(x=k)
+                        l_row_at_x = d_vanishing_polynomial(self.H.to_group, row_at_k)
+                        l_row_at_x = l_row_at_x * row_at_k / self.H.order
+                        sum_for_col += val * l_row_at_x(x=X)
+                m_at_alpha_evals.append(sum_for_col)
+            poly = Vector(vector(m_at_alpha_evals), self.H).low_degree_extension
+
+        else:
+            print("unsupported option")
+            assert(0)
+        return poly
                                                                                                                                       
                                                                                                     
 class Vector: 
@@ -359,13 +378,13 @@ class Vector:
     def __init__(self, v, H):  
       
         self.to_vector = vector(v)  
-        self.H = H 
-        
+        self.H = H
+
         if len(v) > self.H.order: 
             print('Error: Unable to index as the order of H is less than len(v).')
             assert(0)
         
-        self.norm = self.to_vector.norm() #L2 norm
+        # self.norm = self.to_vector.norm() #L2 norm
         self.len = len(self.to_vector)
         self.low_degree_extension = self.low_degree_extension()
 
@@ -434,19 +453,22 @@ class Group:
             self.selector = F(G.order() / ambient.order())*q # the selector polynomial 
 class Indexer: 
     
-    def __init__(self, A, B, C, z):
-        
-        (A, B, C, z) = self.zero_padding(A, B, C, z)
+    def __init__(self, A, B, C, z, w=None, x=None):
+        (A, B, C, z, w_poly, x_poly) = self.zero_padding(A, B, C, z, w, x)
         n_A = matrix_sparse_norm(A)
         n_B = matrix_sparse_norm(B)
         n_C = matrix_sparse_norm(C)
         (K, K_A, K_B, K_C) = self.index_group_matrix(n_A, n_B, n_C)
         H = self.index_group_vector(len(z)) 
+        W = self.index_group_vector(len(w)) 
+        X = self.index_group_vector(len(x)) 
         self.K = Group(K)
         self.K_A = Group(K_A, ambient=K)
         self.K_B = Group(K_B, ambient=K)
         self.K_C = Group(K_C, ambient=K)
         self.H = Group(H)
+        self.W = Group(W)
+        self.X = Group(X)
       
         group_elements_to_file['K'] = self.K.to_list
         group_elements_to_file['K_A'] = self.K_A.to_list
@@ -454,10 +476,12 @@ class Indexer:
         group_elements_to_file['K_C'] = self.K_C.to_list
         group_elements_to_file['H'] = self.H.to_list
         
-        self.A = Matrix(A, self.K_A, self.H)
-        self.B = Matrix(B, self.K_B, self.H)
-        self.C = Matrix(C, self.K_C, self.H)
+        self.A = Matrix(A, self.K_A, self.H, self.X)
+        self.B = Matrix(B, self.K_B, self.H, self.X)
+        self.C = Matrix(C, self.K_C, self.H, self.X)
         self.z = Vector(z, self.H)
+        self.w_poly = w_poly
+        self.x_poly = x_poly
         
         
     # Note that, at the start, we have M.ncols() = len(z) by assumption (for the matrix-vector product to work). 
@@ -465,7 +489,7 @@ class Indexer:
     # Next, we need to make M a square matrix. If M.nrows() <= len(z'), then we make M a square len(z') x len(z') matrix. 
     # Otherwise (i.e. if M.nrows() > len(z')), we zero-pad z' to be of length M.nrows() and make M a square M.nrows() x M.nrows() matrix. 
     # This ensures that H can index into [0, ..., M.nrows() - 1], [0, ..., M.ncols() - 1], and z'. 
-    def zero_padding(self, A, B, C, z):
+    def zero_padding(self, A, B, C, z, w=None, x=None):
 
         c = ceil(log(len(z), 2).n()) 
         z_prime_len = 2^c 
@@ -475,8 +499,42 @@ class Indexer:
         B = zero_pad_matrix(B, 2^n)
         C = zero_pad_matrix(C, 2^n)
         z = zero_pad_vector(z, 2^n)
-        
-        return (A, B, C, z)
+
+        # TODO: this code assumes we use square matrices
+        # TODO: we should split computing x_poly and w_poly into a different function
+
+        # compute x_poly and x_evals
+        X = Group(self.index_group_vector(len(x)))
+        x_vec = Vector(x, X)
+        x_poly = x_vec.low_degree_extension
+        var_domain = Group(self.index_group_vector(len(z)))
+        x_evals = []
+        for h in var_domain.to_list: 
+            x_evals.append(x_vec.low_degree_extension(x=h))
+
+        # compute w_poly
+        # pad w so that len(w) = len(z) - len(x)
+        w = zero_pad_vector(w, 2^n - len(x))
+        ratio = len(z) // len(x)
+        w_evals = []
+        for k in range(0, len(z)):
+            if k % ratio == 0:
+                w_evals.append(0)
+            else:
+                w_evals.append(w[k - (k // ratio) - 1] - x_evals[k])
+
+        w_evals = Vector(w_evals, var_domain)
+        w_poly = w_evals.low_degree_extension
+        w_poly, r = w_poly.quo_rem(X.vanishing_polynomial())
+        if r!= 0: 
+            print('Error: Remainder is non-zero.')
+            assert(0)
+
+        w_evals = []
+        for h in var_domain.to_list: 
+            x_evals.append(x_vec.low_degree_extension(x=h))
+
+        return (A, B, C, z, w_poly, x_poly)
             
     # Returns the indexing group K generated by an element which is of order the minimal power of 2 which is at least |M|. 
     @staticmethod
@@ -548,9 +606,11 @@ class Indexer:
     # If 2^c > len(v), then v is zero padded to size 2^c. 
     @staticmethod 
     def index_group_vector(n): 
+        assert(n > 2) # this will return a weird cached object otherwise
         if n > Fstar.order(): 
             print('Error: Length of vector is greater than |F*|.')
             assert(0)
+        
         c = ceil(log(n, 2).n())
         P = get_root_of_unity(Fstar, c)
         while P == None and c <= prime_factors[0][1]: 
@@ -566,17 +626,26 @@ class Indexer:
 class Prover:
     
     #Pre-processing 
-    def __init__(self, A, B, C, K, K_A, K_B, K_C, H, z):
-        self.A = A
-        self.B = B
-        self.C = C
-        self.z = z 
-
+    def __init__(self, A, B, C, K, K_A, K_B, K_C, H, z, W, w_poly, X, x_poly):
         self.H = H
+        self.X = X
+        self.W = W
         self.K = K
         self.K_A = K_A
         self.K_B = K_B
         self.K_C = K_C
+
+        self.A = A
+        self.B = B
+        self.C = C
+        self.z = z 
+        self.w_poly = w_poly 
+        self.x_poly = x_poly
+        self.z_poly = (self.w_poly * self.X.vanishing_polynomial()) + self.x_poly
+
+        self.z_A_lde = Vector(self.z_M(A, z), H).low_degree_extension
+        self.z_B_lde = Vector(self.z_M(B, z), H).low_degree_extension
+        self.z_C_lde = Vector(self.z_M(C, z), H).low_degree_extension
         
         if self.K_A != self.A.K: 
             print('Error: K_A is not the same as A.K.')
@@ -587,23 +656,21 @@ class Prover:
         if self.K_C != self.C.K: 
             print('Error: K_C is not the same as C.K.')
             assert(0)
-            
-        self.z_A_lde = self.z_M(self.A, self.H, self.z)
-        self.z_B_lde = self.z_M(self.B, self.H, self.z)
-        self.z_C_lde = self.z_M(self.C, self.H, self.z)
     
-    #Return the LDE of the matrix-vector product Mz. 
-    #M is an instance of class 'Matrix' and z is an instance of class 'Vector' and H is an instance of class 'Group'.
     @staticmethod
-    def z_M(M, H, z): 
-        acc = 0 
-        for h in H.to_list: 
-            acc += M.bivariate_matrix_polynomial(None, h)*z.low_degree_extension(x=h)
-        return acc 
+    def z_M(M, z):
+        z_m = []
+        for i in range(0, M.to_matrix.nrows()):
+            row = M.to_matrix[i]
+            acc = 0
+            for j, el in enumerate(row):
+                acc += z.to_vector[j]*el
+            z_m.append(acc)
+        return z_m
             
     # PIOP 1: Rowcheck  
     def Round_1_lhs(self): 
-        
+
         f = self.z_A_lde * self.z_B_lde - self.z_C_lde
         h0, r = f.quo_rem(self.H.vanishing_polynomial())
         if r!= 0: 
@@ -612,11 +679,13 @@ class Prover:
         if f != h0*self.H.vanishing_polynomial() + r: 
             print('Error: Division failed.')
             assert(0) 
-            
-        output_elements_to_file['z_lde'] = self.z.low_degree_extension
+
+        output_elements_to_file['x_lde'] = self.x_poly
+        output_elements_to_file['w_lde'] = self.w_poly
+        output_elements_to_file['z_lde'] = self.z_poly
         output_elements_to_file['h_0'] = h0
         
-        return (self.z.low_degree_extension, h0) 
+        return h0 
     
     def Round_2_lhs(self, gamma):
         sigma_A = self.z_A_lde(x=gamma)
@@ -631,23 +700,40 @@ class Prover:
         eta_A = etas[0]
         eta_B = etas[1]
         eta_C = etas[2]
-            
+        
         sigma_A = sigmas[0]
         sigma_B = sigmas[1]
         sigma_C = sigmas[2]
             
+        M_a = self.A.bivariate_matrix_polynomial(X=gamma, label="a", input_domain=self.X)
+        M_b = self.B.bivariate_matrix_polynomial(X=gamma, label="b", input_domain=self.X)
+        M_c = self.C.bivariate_matrix_polynomial(X=gamma, label="c", input_domain=self.X)
+        z_a = M_a * self.z_poly
+        z_b = M_b * self.z_poly
+        z_c = M_c * self.z_poly
+        sigma_A = 0
+        for h in self.H.to_list: 
+            sigma_A += z_a(h)
+        sigma_B = 0
+        for h in self.H.to_list: 
+            sigma_B += z_b(h)
+        sigma_C = 0
+        for h in self.H.to_list: 
+            sigma_C += z_c(h)
         sigma = eta_A * sigma_A + eta_B * sigma_B + eta_C * sigma_C
-                
-        f = sigma/self.H.order - (eta_A * self.A.bivariate_matrix_polynomial(gamma) 
-                                  + eta_B * self.B.bivariate_matrix_polynomial(gamma) 
-                                  + eta_C * self.C.bivariate_matrix_polynomial(gamma)) * self.z.low_degree_extension
+
+        f = (eta_A * M_a * self.z_poly
+            + eta_B * M_b * self.z_poly
+            + eta_C * M_c * self.z_poly)
         
         h_1, r = f.quo_rem(self.H.vanishing_polynomial()) # h_1 and y * g_1 
         
         if f != h_1*self.H.vanishing_polynomial() + r: 
             print('Error: Division failed')
-            assert(0) 
-            
+            assert(0)
+
+        r = r - sigma/self.H.order
+        
         g_1, s = r.quo_rem(R.lagrange_polynomial([(1, 1), (-1, -1)]))
         
         if s != 0: 
@@ -661,13 +747,13 @@ class Prover:
         output_elements_to_file['h1'] = h_1
         output_elements_to_file['g1'] = g_1
         
-        return (sigma, h_1, g_1) 
+        return (sigma, h_1, g_1, sigma_A, sigma_B, sigma_C) 
      
     def Round_4_lhs(self, gamma, beta): 
             
-        omega_A = self.A.bivariate_matrix_polynomial(gamma)(x=beta)
-        omega_B = self.B.bivariate_matrix_polynomial(gamma)(x=beta)
-        omega_C = self.C.bivariate_matrix_polynomial(gamma)(x=beta)
+        omega_A = self.A.bivariate_matrix_polynomial(X=gamma, label="a", input_domain=self.X)(x=beta)
+        omega_B = self.B.bivariate_matrix_polynomial(X=gamma, label="b", input_domain=self.X)(x=beta)
+        omega_C = self.C.bivariate_matrix_polynomial(X=gamma, label="c", input_domain=self.X)(x=beta)
         
         output_elements_to_file['omegaA'] = omega_A 
         output_elements_to_file['omegaB'] = omega_B 
@@ -692,14 +778,14 @@ class Prover:
         gA, rA = xgA.quo_rem(R.lagrange_polynomial([(1, 1), (-1, -1)]))
         fA = xgA + omega_A / self.K_A.order
         if rA != R(0):
-            print('Error: Remainder is not zero.')
+            print('Error: Remainder rA is not zero.')
             assert(0)
         hA, sA = (pA - qA*fA).quo_rem(self.K_A.vanishing_polynomial())
         if pA - qA*fA != hA*self.K_A.vanishing_polynomial(): 
             print('Error')
             assert(0)
         if sA != R(0):
-            print('Error: Remainder is not zero.')
+            print('Error: Remainder sA is not zero.')
             assert(0)
         if gA.degree() > self.K_A.order or hA.degree() > max(pA.degree(), self.K_A.order - 1 + qA.degree()): 
             print('Error: Degree of gA or hA exceeds maximum bound.')
@@ -715,14 +801,14 @@ class Prover:
         gB, rB = xgB.quo_rem(R.lagrange_polynomial([(1, 1), (-1, -1)]))
         fB = xgB + omega_B / self.K_B.order
         if rB != R(0):
-            print('Error: Remainder is not zero.')
+            print('Error: Remainder rB is not zero.')
             assert(0) 
         hB, sB = (pB - qB*fB).quo_rem(self.K_B.vanishing_polynomial())
         if pB - qB*fB != hB*self.K_B.vanishing_polynomial(): 
             print('Error: Division failed.')
             assert(0)
         if sB != R(0):
-            print('Error: Remainder is not zero.')
+            print('Error: Remainder sB is not zero.')
             assert(0)
         if gB.degree() > self.K_B.order or hB.degree() > max(pB.degree(), self.K_B.order - 1 + qB.degree()): 
             print('Error: Degree of gB or hB exceeds maximum bound.')
@@ -738,14 +824,14 @@ class Prover:
         gC, rC = xgC.quo_rem(R.lagrange_polynomial([(1, 1), (-1, -1)]))
         fC = xgC + omega_C / self.K_C.order
         if rC != R(0):
-            print('Error: Remainder is not zero.')
+            print('Error: Remainder rC is not zero.')
             assert(0)
         hC, sC = (pC - qC*fC).quo_rem(self.K_C.vanishing_polynomial())
         if pC - qC*fC != hC*self.K_C.vanishing_polynomial(): 
             print('Error: Division failed.')
             assert(0)
         if sC != R(0):
-            print('Error: Remainder is not zero.')
+            print('Error: Remainder sC is not zero.')
             assert(0)
         if gC.degree() > self.K_C.order or hC.degree() > max(pC.degree(), self.K_C.order - 1 + qC.degree()): 
             print('Error: Degree of gC or hC exceeds maximum bound.')
@@ -781,7 +867,7 @@ class Prover:
         return h2
 class Verifier: 
     
-    def __init__(self, row_oracles, col_oracles, val_oracles, K, K_A, K_B, K_C, H, x):
+    def __init__(self, row_oracles, col_oracles, val_oracles, K, K_A, K_B, K_C, H, X, x, z_poly, x_poly, w_poly):
         
         self.K = K
         self.K_A = K_A
@@ -789,6 +875,7 @@ class Verifier:
         self.K_C = K_C
         
         self.H = H
+        self.X = X
         
         self.row_A = row_oracles[0]
         self.col_A = col_oracles[0]
@@ -801,6 +888,10 @@ class Verifier:
         self.row_C = row_oracles[2]
         self.col_C = col_oracles[2]
         self.val_C = val_oracles[2]
+
+        self.z_poly = z_poly
+        self.x_poly = x_poly
+        self.w_poly = w_poly
         
     # PIOP 1: Rowcheck 
     def Round_1_rhs(self):    
@@ -808,10 +899,9 @@ class Verifier:
         while gamma in self.H.to_list: 
             gamma = Fstar.random_element()
             
-        #eta_A = Fstar.random_element() 
         eta_A = F(1)
-        eta_B = Fstar.random_element() 
-        eta_C = Fstar.random_element() 
+        eta_B = Fstar.random_element()
+        eta_C = Fstar.random_element()
         
         randomness_to_file['gamma'] = F(gamma)
         randomness_to_file['eta_A'] = F(eta_A)
@@ -837,22 +927,24 @@ class Verifier:
         randomness_to_file['beta'] = F(beta)
         return beta
     
-    def Round_4_rhs(self, z, sigma, h1, g1, omegas, etas, beta): 
+    def Round_4_rhs(self, sigma, h1, g1, omegas, etas, beta): 
             
         eta_A = etas[0]
         eta_B = etas[1]
         eta_C = etas[2]
-            
+
         omega_A = omegas[0]
         omega_B = omegas[1]
         omega_C = omegas[2]
-        
-        lhs = sigma/self.H.order - eta_A * omega_A * z(x=beta) 
-        lhs -= eta_B * omega_B * z(x=beta)
-        lhs -= eta_C * omega_C * z(x=beta)
-        
-            
-        rhs = h1(x=beta) * self.H.vanishing_polynomial(x=beta) + beta * g1(x=beta)
+
+        lhs = eta_A * omega_A * self.x_poly(x=beta) 
+        lhs += eta_A * omega_A * self.X.vanishing_polynomial(x=beta) * self.w_poly(x=beta) 
+        lhs += eta_B * omega_B * self.x_poly(x=beta) 
+        lhs += eta_B * omega_B * self.X.vanishing_polynomial(x=beta) * self.w_poly(x=beta) 
+        lhs += eta_C * omega_C * self.x_poly(x=beta) 
+        lhs += eta_C * omega_C * self.X.vanishing_polynomial(x=beta) * self.w_poly(x=beta) 
+
+        rhs = h1(x=beta) * self.H.vanishing_polynomial(x=beta) + beta * g1(x=beta) + sigma/self.H.order
         
         if lhs != rhs: 
             print('Error: Univariate sumcheck verification failed.')
@@ -904,7 +996,7 @@ class Verifier:
         lhs += delta_C * self.K_C.selector * (a_C - b_C*(R.lagrange_polynomial([(1, 1), (-1, -1)])*g_C + omega_C / self.K_C.order))
         
         s, w = lhs.quo_rem(self.K.vanishing_polynomial())
-        
+
         rhs = h2 * self.K.vanishing_polynomial
         
         if lhs(x=zeta) != rhs(x=zeta): 
@@ -915,31 +1007,32 @@ class Verifier:
 
 def test_cases(A, B, C, z, w=None, x=None): 
     
-    I = Indexer(matrix(A), matrix(B), matrix(C), vector(z))
-    P = Prover(I.A, I.B, I.C, I.K, I.K_A, I.K_B, I.K_C, I.H, I.z)
+    I = Indexer(matrix(A), matrix(B), matrix(C), vector(z), vector(w), vector(x))
+    P = Prover(I.A, I.B, I.C, I.K, I.K_A, I.K_B, I.K_C, I.H, I.z, I.W, I.w_poly, I.X, I.x_poly)
     
     row_oracles = [P.A.row, P.B.row, P.C.row]
     col_oracles = [P.A.col, P.B.col, P.C.col]
     val_oracles = [P.A.val, P.B.val, P.C.val]
     
-    V = Verifier(row_oracles, col_oracles, val_oracles, I.K, I.K_A, I.K_B, I.K_C, I.H, x)
+    V = Verifier(row_oracles, col_oracles, val_oracles, I.K, I.K_A, I.K_B, I.K_C, I.H, P.X, x, P.z_poly, P.x_poly, P.w_poly)
 
     # PIOP 1: Rowcheck  
-    (zlde, h) = P.Round_1_lhs()
+    h = P.Round_1_lhs()
     (gamma, eta_A, eta_B, eta_C) = V.Round_1_rhs()
     (sigA, sigB, sigC) = P.Round_2_lhs(gamma)
     etas = [eta_A, eta_B, eta_C]
-    sigmas = [sigA, sigB, sigC]
+    sigmas = [sigA, sigB, sigC] # TODO: these are wrong
     bit_0 = V.Round_2_rhs(sigA, sigB, sigC, h, gamma)
     print('Result of Rowcheck: ', bit_0)
     
     # PIOP 2: Univariate sumcheck 
-    (sigma, h1, g1) = P.Round_3_lhs(gamma, etas, sigmas)
+    (sigma, h1, g1, sigma_A, sigma_B, sigma_C) = P.Round_3_lhs(gamma, etas, sigmas)
+    sigmas = [sigma_A, sigma_B, sigma_C]
     beta = V.Round_3_rhs()
     (omega_A, omega_B, omega_C) = P.Round_4_lhs(gamma, beta)
     omegas = [omega_A, omega_B, omega_C]
     
-    bit_1 = V.Round_4_rhs(zlde, sigma, h1, g1, omegas, etas, beta)
+    bit_1 = V.Round_4_rhs(sigma, h1, g1, omegas, etas, beta)
     print('Result of Univariate sumcheck: ', bit_1)
     
     # PIOP 3: Ratsumcheck 
@@ -953,34 +1046,62 @@ def test_cases(A, B, C, z, w=None, x=None):
     print('Result of Rational sumcheck: ', bit_2)
 
 
+# Generates R1CS instances of m x n matrices where z is of the form [1, b^(d+2), b, b^2, ..., b, b, ...] and d is the multiplicative depth of the circuit
+# this follows TestCircuit::gen_rand(..)
+def gen_r1cs_instance(m, n, b, d):
+    # generate the (public and private) witness vector belonging to our TestCircuit
+    # the private part
+    dummy_vars = n - 3 - d
+    w = [2, 4]
+    for i in range(0, dummy_vars):
+        w.append(w[0])
+    # the public part
+    x = [1, 8]
+    for d in range(3, d+2):
+        x.append(w[1] * x[-1])
+    z = x + w
 
-# Generates R1CS instances of n x m matrices where z is of the form [b, b^2, b^3, ..., b^m].
-def gen_r1cs_instance(n, m, b): 
-    z = vector([b^i for i in range(1, m+1)])
+    z = vector(z)
+    # Generate constraints as per TestCircuit::generate_constraints(...)
+    # We initialize the matrix so we can append to it, and cut off the first row later using submatrix
     A = matrix(zero_vector(m))
     B = matrix(zero_vector(m))
     C = matrix(zero_vector(m))
-    for i in range(0, n): 
-        found = False 
-        while(not found): 
-            index1 = randint(0, m-1)
-            if m - index1 - 2 > 0: 
-                index2 = randint(0, m - index1 - 2)
-                index3 = index1 + index2 + 1
-                found = True 
-                
+
+    num_mul_constraints = d - 1 - 1
+    # Insert constraints of the form z[1]*z[2]=z[0]
+    # TODO: this is hardcoded, make it dynamic based on TestCircuit
+    for i in range(0, n - num_mul_constraints):
         a = zero_vector(m)
-        a[index1] = 1
+        a[4] = 1
         A = A.insert_row(A.nrows(), a)
         
         b = zero_vector(m)
-        b[index2] = 1
+        b[5] = 1
         B = B.insert_row(B.nrows(), b)
         
         c = zero_vector(m)
-        c[index3] = 1
+        c[1] = 1
         C = C.insert_row(C.nrows(), c)
-        
+
+    # Insert constraints of the form z[i-1]*z[2]=z[i]
+    z_index = 2
+    for i in range(0, num_mul_constraints):
+        a = zero_vector(m)
+        a[z_index - 1] = 1
+        A = A.insert_row(A.nrows(), a)
+
+        b = zero_vector(m)
+        b[5] = 1
+        B = B.insert_row(B.nrows(), b)
+          
+        c = zero_vector(m)
+        c[z_index] = 1
+        C = C.insert_row(C.nrows(), c)
+
+        z_index += 1
+    
+    # Take submatrices using submatrix(i,j,nr,nc), start at entry (i,j), use nr rows, nc cols
     A = A.submatrix(1, 0, n, m)
     B = B.submatrix(1, 0, n, m)
     C = C.submatrix(1, 0, n, m)
@@ -988,7 +1109,7 @@ def gen_r1cs_instance(n, m, b):
         print('Error: Invalid R1CS instance.')
         assert(0)
 
-    return (A, B, C, z)
+    return (A, B, C, z, w, x)
 
 
 def main(): 
@@ -1004,15 +1125,15 @@ def main():
         z = vector([1, 3, 35, 9, 27, 30, 0])
         test_cases(A, B, C, z, w, x)
     else: 
-        n = int(args[0])
-        m = int(args[1])
+        m = int(args[0])
+        n = int(args[1])
         b = int(args[2])
         d = int(args[3])
-        (A, B, C, z) = gen_r1cs_instance(n, m, b)
+        (A, B, C, z, w, x) = gen_r1cs_instance(m, n, b, d)
         A = matrix(A)
         B = matrix(B)
         C = matrix(C)
-        test_cases(A, B, C, z)
+        test_cases(A, B, C, z, w, x)
 
     # Write r1cs instance to test file 
     with open('r1cs.txt', 'w') as f_r1cs:
@@ -1084,7 +1205,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
