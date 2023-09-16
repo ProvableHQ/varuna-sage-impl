@@ -25,7 +25,7 @@ group_elements_to_file = {}
 
 # Samples a random element from G, which is either of type 'group' or 'subgroup'
 # In Sage, there is no method to sample an element from an object of type 'subgroup'
-def random_element(G): 
+def random_element(G):
     if not isinstance(G, sage.groups.group.Group): 
         print('Error: The input G is not a group.')
         assert(0)
@@ -38,7 +38,7 @@ def random_element(G):
     return g
 
 # Sorts elements in subgroup of F* by their value. 
-def sort_by_value(L: list):
+def sort_by_value(L):
     result = []
     norm_mapping = {}
     for elem in L: 
@@ -136,7 +136,7 @@ def zero_pad_vector(v, n):
 
 #Return the minimal degree vanishing polynomial over the subgroup H of F*. 
 # v_S = (x-s1)(x-s2)...(x-sn)
-def vanishing_polynomial(S): 
+def vanishing_polynomial(S):
     if isinstance(S, sage.groups.group.Group): 
         S = group_to_list(S)
     prod = R(1)
@@ -163,7 +163,7 @@ def d_vanishing_polynomial(S, a):
     return q
     
 # Returns the Lagrange polynomial defined over the set S \subset F* at point a \in F*. 
-def lagrange_polynomial(S, a): 
+def lagrange_polynomial(S: sage.groups.group.Group, a):
     if isinstance(S, sage.groups.group.Group): 
         S = group_to_list(S) # 
     if a not in S: 
@@ -190,14 +190,6 @@ def lagrange_polynomial(S, a):
     
     return q/q(x=a)
 
-def reindex_by_subdomain(self, other, index):
-    period = self.order / other.order
-    if index < other.order:
-        return index * period
-    else:
-        i = index - other.order
-        x = period - 1
-        return i + (i / x) + 1
 
 """
 
@@ -334,7 +326,7 @@ class Matrix:
         f = R.lagrange_polynomial(points)
         return f
     
-    # Returns the bivariate polynomial representation of matrix M evaluated at either x or y.
+    # Returns the bivariate polynomial representation of matrix M evaluated at either x or y.
     # i.e. this will return a univariate polynomial of the form M(alpha, x) or M(x, beta) or M(alpha, beta).
     def bivariate_matrix_polynomial(self, X=None, Y=None, label=None, input_domain=None): 
         if X == None and Y == None: 
@@ -375,8 +367,7 @@ class Matrix:
                                                                                                     
 class Vector: 
     
-    def __init__(self, v, H):  
-      
+    def __init__(self, v, H):
         self.to_vector = vector(v)  
         self.H = H
 
