@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+Class to represent A, B, & C in the R1CS constraint system with methods to generate polynomials used in Varuna PIOPs
+"""
+
 load("algebra/polynomial.sage")
 load("algebra/scalar_field.sage")
 load("algebra/vector.sage")

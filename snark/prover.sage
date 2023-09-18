@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+Prover class which executes the proofs of the Varuna protocol.
+"""
+
 load("algebra/scalar_field.sage")
 
 class Prover:

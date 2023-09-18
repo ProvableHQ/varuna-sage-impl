@@ -8,7 +8,7 @@ You need to pass three arguments `m n b d` where:
 
 Example usage:
 ```
-sage varuna.sage 7 7 2 3
+sage run.sage 7 7 2 3
 ```
 
 This will create a circuit with `padded_public_variables`: `[1, 8, 32, 128]` and `private_variables`: `[2, 4, 2]`.

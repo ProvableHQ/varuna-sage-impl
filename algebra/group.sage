@@ -1,5 +1,6 @@
 """
-Polynomial helper functions. Operations are done over the scalar field used by the BLS-377 elliptic curve.
+Group type that wraps the SageMath group type to include extra information about the vanishing polynomial and selector
+polynomials of the circuit(s) being proved over the group.
 """
 
 load("algebra/polynomial.sage");

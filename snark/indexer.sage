@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+Indexer class that takes in an R1CS constraint system and indexes it for Varuna PIOPs
+"""
+
 load("algebra/group.sage")
 load("algebra/matrix.sage")
 load("algebra/scalar_field.sage")

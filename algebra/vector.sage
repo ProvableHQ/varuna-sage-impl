@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Vector class containing the evaluation domain, indexing group, and low degree polyonomial extension representation of
+a vector. This is used to represent the witness Vector and the representations of its multiplications with the matrices
+A, B, and C representing the constraints of the circuit z_A, z_B, and z_C.
+"""
+
 load("algebra/scalar_field.sage")
 load("algebra/polynomial.sage")
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Polynomial helper functions. Operations are done over the scalar field used by the BLS-377 elliptic curve.
+Helper functions used to create polynomials used in Varuna PIOPs
 """
 
 load("algebra/scalar_field.sage")
