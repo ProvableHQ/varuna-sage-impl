@@ -1,10 +1,9 @@
-from sage.all import *
-attach("algebra/scalar_field.sage")
-attach("algebra/polynomial.sage")
+load("algebra/scalar_field.sage")
+load("algebra/polynomial.sage")
 
 class Vector:
 
-    def __init__(self, v: : sage.modules.vector_integer_dense.Vector_integer_dense, H: Group):
+    def __init__(self, v: sage.modules.vector_integer_dense.Vector_integer_dense, H: Group):
 
         self.to_vector = vector(v)
         self.H = H

@@ -1,4 +1,3 @@
-from sage.all import *
 # Generates R1CS instances of m x n matrices where z is of the form [1, b^(d+2), b, b^2, ..., b, b, ...] and d is the multiplicative depth of the circuit
 # this follows TestCircuit::gen_rand(..)
 def gen_r1cs_instance(m, n, b, d):
@@ -59,6 +58,17 @@ def gen_r1cs_instance(m, n, b, d):
     B = B.submatrix(1, 0, n, m)
     C = C.submatrix(1, 0, n, m)
     if (A*z).pairwise_product(B*z) != C*z:
+        print("Matrix A")
+        print(A)
+        print("Matrix B")
+        print(B)
+        print("Matrix C")
+        print(C)
+        print("Vector z")
+        print(A*z)
+        print(B*z)
+        print(A*z.pairwise_product(B*z))
+        print(C*z)
         print('Error: Invalid R1CS instance.')
         assert(0)
 

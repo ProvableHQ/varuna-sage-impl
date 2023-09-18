@@ -1,7 +1,6 @@
-from sage.all import *
-attach("algebra/group.sage")
-attach("algebra/matrix.sage")
-attach("algebra/scalar_field.sage")
+load("algebra/group.sage")
+load("algebra/matrix.sage")
+load("algebra/scalar_field.sage")
 
 class Indexer:
 

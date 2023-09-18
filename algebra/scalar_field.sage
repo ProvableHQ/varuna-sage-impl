@@ -2,7 +2,7 @@
 """
 Field constants for the scalar field used by the BLS-377 elliptic curve
 """
-from sage.all import *
+
 ### Prime field modulus (2^253 - 1)
 p = 8444461749428370424248824938781546531375899335154063827935233455917409239041
 

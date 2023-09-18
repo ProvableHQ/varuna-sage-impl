@@ -1,7 +1,6 @@
-from sage.all import *
-attach("algebra/polynomial.sage")
-attach("algebra/scalar_field.sage")
-attach("algebra/vector.sage")
+load("algebra/polynomial.sage")
+load("algebra/scalar_field.sage")
+load("algebra/vector.sage")
 
 class Matrix:
 

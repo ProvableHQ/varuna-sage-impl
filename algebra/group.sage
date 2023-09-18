@@ -1,9 +1,9 @@
 """
 Polynomial helper functions. Operations are done over the scalar field used by the BLS-377 elliptic curve.
 """
-from sage.all import *
-attach("algebra/polynomial.sage");
-attach("algebra/scalar_field.sage");
+
+load("algebra/polynomial.sage");
+load("algebra/scalar_field.sage");
 
 class Group:
 

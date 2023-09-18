@@ -3,8 +3,7 @@
 Polynomial helper functions. Operations are done over the scalar field used by the BLS-377 elliptic curve.
 """
 
-from sage.all import *
-attach("algebra/scalar_field.sage")
+load("algebra/scalar_field.sage")
 
 #Return the minimal degree vanishing polynomial over the subgroup H of F*.
 # v_S = (x-s1)(x-s2)...(x-sn)

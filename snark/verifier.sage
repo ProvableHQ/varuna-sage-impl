@@ -1,5 +1,4 @@
-from sage.all import *
-attach("algebra/scalar_field.sage")
+load("algebra/scalar_field.sage")
 
 class Verifier:
 
