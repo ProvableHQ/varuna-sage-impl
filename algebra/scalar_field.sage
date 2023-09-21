@@ -3,7 +3,7 @@
 Field constants for the scalar field used by the BLS-377 elliptic curve
 """
 
-### Prime field modulus (2^253 - 1)
+### Prime field modulus
 p = 8444461749428370424248824938781546531375899335154063827935233455917409239041
 
 ### Instantiation of GF and its multiplicative subgroup defined by the unit group
@@ -55,10 +55,10 @@ def element_order_r(G, r):
 # Returns a primitive '2^n'th root of unity - this helps form the evaluation domain for Varuna polynomials
 def get_root_of_unity(G, n):
     omega = TWO_ADIC_ROOT_OF_UNITY
-    if omega**(_sage_const_2 **TWO_ADICITY) != F(_sage_const_1 ):
+    if omega^(2^TWO_ADICITY) != F(1):
         print('Error: Two-adic root of unity is not of order 2^TWO_ADICITY.')
-        assert(_sage_const_0 )
-    return pow(omega, _sage_const_2 **(TWO_ADICITY - n))
+        assert(0)
+    return pow(omega, 2^(TWO_ADICITY - n))
 
 # Casts a group G = [g, g^2, ..., g^n=1] into a list of group elements.
 def group_to_list(G: sage.groups.group.Group):

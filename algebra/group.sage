@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Group type that wraps the SageMath group type to include extra information about the vanishing polynomial and selector
 polynomials of the circuit(s) being proved over the group.
