@@ -38,6 +38,7 @@ def random_element(G):
         g = G.random_element()
     return g
 
+"""
 def zero_pad_matrix_to_n_m(M, n, m): 
     for _ in range(n - M.nrows()): 
         M = M.insert_row(M.nrows() - 1, [0] * M.ncols())
@@ -47,6 +48,21 @@ def zero_pad_matrix_to_n_m(M, n, m):
         M = M.insert_row(M.nrows() - 1, [0] * M.ncols())
 
     return M.transpose()
+
+"""
+
+def zero_pad_matrix_to_n_m(M, m, n):
+    # Pad rows
+    for _ in range(m - M.nrows()): 
+        M = M.insert_row(M.nrows(), [0] * M.ncols())
+
+    # Pad columns
+    M = M.transpose()
+    for _ in range(n - M.nrows()): 
+        M = M.insert_row(M.nrows(), [0] * M.ncols())
+    
+    return M.transpose()
+
 
 # Sorts elements in subgroup of F* by their value. 
 def sort_by_value(L: list):
@@ -465,8 +481,7 @@ class Group:
 class Indexer: 
     
     def __init__(self, A, B, C, z, w=None, x=None):
-        #(A, B, C, z, w_poly, x_poly) = self.zero_padding(A, B, C, z, w, x)
-
+    
         z = list(z)
         x = list(x)
         w = list(w)
@@ -479,7 +494,8 @@ class Indexer:
         num_variables_after_padding = self.nearest_power_of_2(matrix(A).ncols()) # A.ncols() == len(z)
         num_public_inputs_after_padding = self.nearest_power_of_2(len(x))
         z = self.zero_pad_vector_to_length_n(z, num_variables_after_padding)
-        x = self.zero_pad_vector_to_length_n(x, num_variables_after_padding)
+        #x = self.zero_pad_vector_to_length_n(x, num_variables_after_padding)
+        #x = self.zero_pad_vector_to_length_n(x, num_public_inputs_after_padding)
 
         # pad matrices 
         A = zero_pad_matrix_to_n_m(A, num_constraints_after_padding, num_variables_after_padding)
@@ -530,12 +546,34 @@ class Indexer:
         matrix_elements_to_file['col_C'] = self.C.col
         matrix_elements_to_file['row_C'] = self.C.row
 
+        # Compute the LDEs for x and w 
+        x_vec = Vector(x, self.X)
+        x_poly = x_vec.low_degree_extension
+        x_evals = []
+        for h in self.variable_domain.to_list: 
+            x_evals.append(x_vec.low_degree_extension(x=h))
+        w = self.zero_pad_vector_to_length_n(w, len(z) - len(x))
+        ratio = len(z) // len(x)
+        w_evals = []
+        for k in range(0, len(z)):
+            if k % ratio == 0:
+                w_evals.append(0)
+            else:
+                w_evals.append(w[k - (k // ratio) - 1] - x_evals[k])
+        w_evals = Vector(w_evals, self.variable_domain)
+        w_poly = w_evals.low_degree_extension
+        w_poly, r = w_poly.quo_rem(self.X.vanishing_polynomial())
+        if r!= 0: 
+            print('Error: Remainder is non-zero.')
+            assert(0)
 
         self.z = Vector(z, self.variable_domain)
-        self.x_poly = Vector(x, self.variable_domain).low_degree_extension
-        self.w_poly = self.get_witness_poly(num_variables_after_padding, num_public_inputs_after_padding, w, x)
+        self.x_poly = x_poly
+        self.w_poly = w_poly
 
-
+        #self.x_poly = Vector(x, self.variable_domain).low_degree_extension
+        #self.x_poly = Vector(x, self.X).low_degree_extension
+        #self.w_poly = self.get_witness_poly(num_variables_after_padding, len(x), w, self.zero_pad_vector_to_length_n(x, num_variables_after_padding))
 
     def nearest_power_of_2(self, num): 
         c = ceil(log(num, 2).n())
@@ -577,7 +615,6 @@ class Indexer:
 
 
     def get_witness_poly(self, num_variables, num_public_inputs, w, x): 
-
         w = self.zero_pad_vector_to_length_n(w, num_variables - num_public_inputs)
         ratio = num_variables // num_public_inputs 
         w_shifted = []
@@ -595,7 +632,6 @@ class Indexer:
             assert(0)
 
         return w_poly 
-
 
 
 class Prover:
@@ -620,20 +656,25 @@ class Prover:
         self.z_poly = (self.w_poly * self.X.vanishing_polynomial()) + self.x_poly
 
         self.z = z
-        (z_A, z_B, z_C) = self.z_M()
+        (z_A_prime, z_A, z_B, z_C) = self.z_M()
 
         self.z_A_lde = z_A
         self.z_B_lde = z_B
         self.z_C_lde = z_C
 
+        output_elements_to_file['z_A_lde'] = self.z_A_lde
+        output_elements_to_file['z_B_lde'] = self.z_B_lde
+        output_elements_to_file['z_C_lde'] = self.z_C_lde
+
 
     def z_M(self):  
 
+        z_A_prime = Vector(self.A.to_matrix * self.z.to_vector, self.constraint_domain)
         z_A = Vector(self.A.to_matrix * self.z.to_vector, self.constraint_domain).low_degree_extension
         z_B = Vector(self.B.to_matrix * self.z.to_vector, self.constraint_domain).low_degree_extension
         z_C = Vector(self.C.to_matrix * self.z.to_vector, self.constraint_domain).low_degree_extension
 
-        return (z_A, z_B, z_C)
+        return (z_A_prime, z_A, z_B, z_C)
 
             
     # PIOP 1: Rowcheck  
