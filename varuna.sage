@@ -864,12 +864,10 @@ class Prover:
         delta_A = deltas[0]
         delta_B = deltas[1]
         delta_C = deltas[2]
-        
-        h2 = delta_A * self.K_A.selector * hA * self.K_A.order/self.K.order
-        h2 += delta_B * self.K_B.selector * hB * self.K_B.order/self.K.order
-        h2 += delta_C * self.K_C.selector * hC * self.K_C.order/self.K.order
-        
-        #h2, r2 = h2.quo_rem(self.K.vanishing_polynomial()) # divide through by v_K 
+
+        h2 = delta_A * hA * self.K_A.order/self.K.order
+        h2 += delta_B * hB * self.K_B.order/self.K.order
+        h2 += delta_C * hC * self.K_C.order/self.K.order
         
         output_elements_to_file['h2'] = h2 
         
@@ -1008,8 +1006,6 @@ class Verifier:
         b_C = constC*(gamma - self.row_C)*(beta - self.col_C)
         lhs += delta_C * self.K_C.selector * (a_C - b_C*(R.lagrange_polynomial([(1, 1), (-1, -1)])*g_C + omega_C / self.K_C.order))
         
-        #s, w = lhs.quo_rem(self.K.vanishing_polynomial())
-
         rhs = h2 * self.K.vanishing_polynomial
         
         if lhs(x=zeta) != rhs(x=zeta): 
@@ -1020,13 +1016,8 @@ class Verifier:
         return 1
     
 def test_cases(A, B, C, z, w=None, x=None): 
-
-    #Indexer(self, A, B, C, z, w=None, x=None)
-    #Prover(self, A, B, C, K, K_A, K_B, K_C, variable_domain, constraint_domain, X, x_poly, w_poly):
-    #Verifier(self, row_oracles, col_oracles, val_oracles, K, K_A, K_B, K_C, variable_domain, constraint_domain, X, z_poly, x_poly, w_poly):
     
     I = Indexer(matrix(A), matrix(B), matrix(C), vector(z), vector(w), vector(x))
-    print()
     P = Prover(I.A, I.B, I.C, I.K, I.K_A, I.K_B, I.K_C, I.variable_domain, I.constraint_domain, I.X, I.z, I.x_poly, I.w_poly)
 
     row_oracles = [P.A.row, P.B.row, P.C.row]
