@@ -38,6 +38,12 @@ def random_element(G):
         g = G.random_element()
     return g
 
+def interpolate(poly, domain): 
+    points = []
+    for k in domain: 
+        points.append((F(k), poly(x=k)))
+    return R.lagrange_polynomial(points)
+
 """
 def zero_pad_matrix_to_n_m(M, n, m): 
     for _ in range(n - M.nrows()): 
@@ -354,6 +360,13 @@ class Matrix:
         f = R.lagrange_polynomial(points)
         
         return f
+
+    def interpolate_on_K(self, poly): 
+        points = []
+        for k in self.K.to_list: 
+            points.append((F(k), poly(x=k)))
+        return R.lagrange_polynomial(points)
+
     
     # Returns the bivariate polynomial representation of matrix M evaluated at either x or y.
     # i.e. this will return a univariate polynomial of the form M(alpha, x) or M(x, beta) or M(alpha, beta).
@@ -771,8 +784,10 @@ class Prover:
         
         ## A
         rowcolvalA = self.A.row()*self.A.col()*self.A.val()
-        pA = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*rowcolvalA
-        qA = self.constraint_domain.order*self.variable_domain.order*(gamma - self.A.row())*(beta - self.A.col())
+        rowcolA = self.A.row()*self.A.col()
+        pA = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*self.A.interpolate_on_K(rowcolvalA)
+        qA = self.constraint_domain.order*self.variable_domain.order*(gamma*beta - gamma*self.A.col() - beta*self.A.row() + self.A.interpolate_on_K(rowcolA))
+        #qA = self.constraint_domain.order*self.variable_domain.order*(gamma - self.A.row())*(beta - self.A.col())
         points_A = [] 
         for k in self.K_A.to_list:
             points_A.append((F(k), (pA/qA)(x=k)))
@@ -781,7 +796,7 @@ class Prover:
         hA, sA = (pA - qA*pA_over_qA).quo_rem(self.K_A.vanishing_polynomial)
         xgA = pA_over_qA - omega_A / self.K_A.order
         gA, rA = xgA.quo_rem(R.lagrange_polynomial([(1, 1), (-1, -1)]))
-      
+
         if rA != 0:
             print('Error: Remainder rA is not zero.')
             assert(0)
@@ -797,8 +812,10 @@ class Prover:
         
         ## B
         rowcolvalB = self.B.row()*self.B.col()*self.B.val()
-        pB = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*rowcolvalB
-        qB = self.constraint_domain.order*self.variable_domain.order*(gamma - self.B.row())*(beta - self.B.col())
+        rowcolB = self.B.row()*self.B.col()
+        pB = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*self.B.interpolate_on_K(rowcolvalB)
+        qB = self.constraint_domain.order*self.variable_domain.order*(gamma*beta - gamma*self.B.col() - beta*self.B.row() + self.B.interpolate_on_K(rowcolB))
+        #qB = self.constraint_domain.order*self.variable_domain.order*(gamma - self.B.row())*(beta - self.B.col())
         points_B = [] 
         for k in self.K_B.to_list:
             points_B.append((F(k), (pB/qB)(x=k)))
@@ -823,8 +840,10 @@ class Prover:
       
         ## C
         rowcolvalC = self.C.row()*self.C.col()*self.C.val()
-        pC = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*rowcolvalC
-        qC = self.constraint_domain.order*self.variable_domain.order*(gamma - self.C.row())*(beta - self.C.col())
+        rowcolC = self.C.row()*self.C.col()
+        pC = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*self.C.interpolate_on_K(rowcolvalC)
+        qC = self.constraint_domain.order*self.variable_domain.order*(gamma*beta - gamma*self.C.col() - beta*self.C.row() + self.C.interpolate_on_K(rowcolC))
+        #qC = self.constraint_domain.order*self.variable_domain.order*(gamma - self.C.row())*(beta - self.C.col())
         points_C = [] 
         for k in self.K_C.to_list:
             points_C.append((F(k), (pC/qC)(x=k)))
@@ -990,20 +1009,21 @@ class Verifier:
         
         rowcolvalA = self.val_A * self.row_A * self.col_A
         constA = self.constraint_domain.order * self.variable_domain.order
-        a_A = self.constraint_domain.vanishing_polynomial(x=gamma) * self.variable_domain.vanishing_polynomial(x=beta) * rowcolvalA
-        b_A = constA*(gamma - self.row_A)*(beta - self.col_A)
+        a_A = self.constraint_domain.vanishing_polynomial(x=gamma) * self.variable_domain.vanishing_polynomial(x=beta) * interpolate(rowcolvalA, self.K_A.to_list)
+        b_A = constA*(gamma*beta - gamma*self.col_A - beta*self.row_A + interpolate(self.row_A*self.col_A, self.K_A.to_list))
+        #b_A = constA*(gamma - self.row_A)*(beta - self.col_A)
         lhs = delta_A * self.K_A.selector * (a_A - b_A*(R.lagrange_polynomial([(1, 1), (-1, -1)])*g_A + omega_A / self.K_A.order))
         
         rowcolvalB = self.val_B * self.row_B * self.col_B
         constB = self.constraint_domain.order * self.variable_domain.order
-        a_B = self.constraint_domain.vanishing_polynomial(x=gamma) * self.variable_domain.vanishing_polynomial(x=beta) * rowcolvalB
-        b_B = constB*(gamma - self.row_B)*(beta - self.col_B)
+        a_B = self.constraint_domain.vanishing_polynomial(x=gamma) * self.variable_domain.vanishing_polynomial(x=beta) * interpolate(rowcolvalB, self.K_B.to_list)
+        b_B = constB*(gamma*beta - gamma*self.col_B - beta*self.row_B + interpolate(self.row_B*self.col_B, self.K_B.to_list))
         lhs += delta_B * self.K_B.selector * (a_B - b_B*(R.lagrange_polynomial([(1, 1), (-1, -1)])*g_B + omega_B / self.K_B.order))
         
         rowcolvalC = self.val_C * self.row_C * self.col_C
         constC = self.constraint_domain.order * self.variable_domain.order
-        a_C = self.constraint_domain.vanishing_polynomial(x=gamma) * self.variable_domain.vanishing_polynomial(x=beta) * rowcolvalC
-        b_C = constC*(gamma - self.row_C)*(beta - self.col_C)
+        a_C = self.constraint_domain.vanishing_polynomial(x=gamma) * self.variable_domain.vanishing_polynomial(x=beta) * interpolate(rowcolvalC, self.K_C.to_list)
+        b_C = constC*(gamma*beta - gamma*self.col_C - beta*self.row_C + interpolate(self.row_C*self.col_C, self.K_C.to_list))
         lhs += delta_C * self.K_C.selector * (a_C - b_C*(R.lagrange_polynomial([(1, 1), (-1, -1)])*g_C + omega_C / self.K_C.order))
         
         rhs = h2 * self.K.vanishing_polynomial
