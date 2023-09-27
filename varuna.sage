@@ -44,19 +44,6 @@ def interpolate(poly, domain):
         points.append((F(k), poly(x=k)))
     return R.lagrange_polynomial(points)
 
-"""
-def zero_pad_matrix_to_n_m(M, n, m): 
-    for _ in range(n - M.nrows()): 
-        M = M.insert_row(M.nrows() - 1, [0] * M.ncols())
-
-    M = M.transpose() 
-    for _ in range(m - M.nrows()): 
-        M = M.insert_row(M.nrows() - 1, [0] * M.ncols())
-
-    return M.transpose()
-
-"""
-
 def zero_pad_matrix_to_n_m(M, m, n):
     # Pad rows
     for _ in range(m - M.nrows()): 
@@ -68,7 +55,6 @@ def zero_pad_matrix_to_n_m(M, m, n):
         M = M.insert_row(M.nrows(), [0] * M.ncols())
     
     return M.transpose()
-
 
 # Sorts elements in subgroup of F* by their value. 
 def sort_by_value(L: list):
@@ -223,37 +209,6 @@ def lagrange_basis_polynomial(S, a):
     
     return q*(F(a) / F(len(S)))
 
-
-"""
-# Returns the Lagrange basis polynomial defined over the set S subset F* at point a in F*. 
-def lagrange_basis_polynomial(S, a): 
-    if isinstance(S, sage.groups.group.Group): 
-        S = group_to_list(S) # 
-    if a not in S: 
-        print('Error: a is not an element of S.')
-        assert(0)
-        
-    f = vanishing_polynomial(S)
-    g=None
-    if a == F(0): 
-        g = R.lagrange_polynomial([(1, 1), (-1, -1)]) # = X
-    else: 
-        g = R.lagrange_polynomial([(F(a), 0), (0, -F(a))]) # = (X-a)
-    if g == None: 
-        print('Error: g is None')
-        assert(0)
-        
-    q,r = f.quo_rem(g) 
-    if r!=R(0): 
-        print('Error: Remainder should be 0.')
-        assert(0)
-    if  f != q*g + r: 
-        print('Error: Euclidean division failed.')
-        assert(0)
-    
-    return q/q(x=a)
-"""
-
 def reindex_by_subdomain(self, other, index):
     period = self.order / other.order
     if index < other.order:
@@ -311,7 +266,6 @@ class Matrix:
         for i in range(self.to_matrix.nrows()): 
             for j in range(self.to_matrix.ncols()): 
                 if self.to_matrix[i,j] > 0: 
-                    #mapping[self.K.to_list[j]] = (i,j)
                     mapping[self.K.to_list[index]] = (i,j)
                     index+=1 
 
@@ -377,15 +331,13 @@ class Matrix:
 
         num_variables = len(self.variable_domain.to_list)
         num_constraints = len(self.constraint_domain.to_list)
-        #transpose = list(matrix(num_variables, num_constraints))
 
-        temp = list(matrix(num_constraints, num_variables))
-        #transpose = list(matrix(num_variables, num_constraints))
+        # initialize matrix m
+        m = list(matrix(num_constraints, num_variables))
         for (row_index, row) in enumerate(self.to_matrix):
             for (col_index, val) in enumerate(row):
                 c_i = reindex_by_subdomain(self.variable_domain, self.X, col_index)
-                #transpose[c_i][row_index] = val
-                temp[row_index][c_i] = val 
+                m[row_index][c_i] = val 
 
 
         M_at_alpha_evals = []
@@ -397,9 +349,7 @@ class Matrix:
                 for k in self.K_to_RC.keys():  
                     (i, j) = self.K_to_RC[k]
                     j = reindex_by_subdomain(self.variable_domain, self.X, j)
-                    val = temp[i][j]
-                    #val = transpose[i][j]
-                    #val = self.to_matrix[i,j]
+                    val = m[i][j]
                     row_at_k = self.row(x=k)
                     col_at_k = self.col(x=k)
                     L_row_at_k = lagrange_basis_polynomial(self.constraint_domain.to_group, row_at_k)(x=X)
@@ -414,9 +364,7 @@ class Matrix:
                 for k in self.K_to_RC.keys():  
                     (i, j) = self.K_to_RC[k]
                     j = reindex_by_subdomain(self.variable_domain, self.X, j)
-                    val = temp[i][j]
-                    #val = transpose[i][j]
-                    #val = self.to_matrix[i,j]
+                    val = m[i][j]
                     row_at_k = self.row(x=k)
                     col_at_k = self.col(x=k)
                     L_row_at_k = lagrange_basis_polynomial(self.constraint_domain.to_group, row_at_k)
@@ -442,8 +390,7 @@ class Vector:
         if len(v) != self.H.order: 
             print('Error: The length of the vector and its indexing group are different.')
             assert(0)
-        
-        # self.norm = self.to_vector.norm() #L2 norm
+
         self.len = len(self.to_vector)
         self.low_degree_extension = self.low_degree_extension()
         
@@ -502,13 +449,11 @@ class Indexer:
         B = matrix(B)
         C = matrix(C)
 
-        # zero pad z and x 
+        # zero pad z 
         num_constraints_after_padding = self.nearest_power_of_2(matrix(A).nrows()) 
         num_variables_after_padding = self.nearest_power_of_2(matrix(A).ncols()) # A.ncols() == len(z)
         num_public_inputs_after_padding = self.nearest_power_of_2(len(x))
         z = self.zero_pad_vector_to_length_n(z, num_variables_after_padding)
-        #x = self.zero_pad_vector_to_length_n(x, num_variables_after_padding)
-        #x = self.zero_pad_vector_to_length_n(x, num_public_inputs_after_padding)
 
         # pad matrices 
         A = zero_pad_matrix_to_n_m(A, num_constraints_after_padding, num_variables_after_padding)
@@ -548,7 +493,6 @@ class Indexer:
         self.B = Matrix(B, self.K_B, self.variable_domain, self.constraint_domain, self.X)
         self.C = Matrix(C, self.K_C, self.variable_domain, self.constraint_domain, self.X)
 
-
         matrix_elements_to_file['val_A'] = self.A.val
         matrix_elements_to_file['col_A'] = self.A.col
         matrix_elements_to_file['row_A'] = self.A.row
@@ -583,10 +527,6 @@ class Indexer:
         self.z = Vector(z, self.variable_domain)
         self.x_poly = x_poly
         self.w_poly = w_poly
-
-        #self.x_poly = Vector(x, self.variable_domain).low_degree_extension
-        #self.x_poly = Vector(x, self.X).low_degree_extension
-        #self.w_poly = self.get_witness_poly(num_variables_after_padding, len(x), w, self.zero_pad_vector_to_length_n(x, num_variables_after_padding))
 
     def nearest_power_of_2(self, num): 
         c = ceil(log(num, 2).n())
@@ -681,7 +621,6 @@ class Prover:
 
 
     def z_M(self):  
-
         z_A_prime = Vector(self.A.to_matrix * self.z.to_vector, self.constraint_domain)
         z_A = Vector(self.A.to_matrix * self.z.to_vector, self.constraint_domain).low_degree_extension
         z_B = Vector(self.B.to_matrix * self.z.to_vector, self.constraint_domain).low_degree_extension
@@ -787,7 +726,6 @@ class Prover:
         rowcolA = self.A.row()*self.A.col()
         pA = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*self.A.interpolate_on_K(rowcolvalA)
         qA = self.constraint_domain.order*self.variable_domain.order*(gamma*beta - gamma*self.A.col() - beta*self.A.row() + self.A.interpolate_on_K(rowcolA))
-        #qA = self.constraint_domain.order*self.variable_domain.order*(gamma - self.A.row())*(beta - self.A.col())
         points_A = [] 
         for k in self.K_A.to_list:
             points_A.append((F(k), (pA/qA)(x=k)))
@@ -815,7 +753,6 @@ class Prover:
         rowcolB = self.B.row()*self.B.col()
         pB = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*self.B.interpolate_on_K(rowcolvalB)
         qB = self.constraint_domain.order*self.variable_domain.order*(gamma*beta - gamma*self.B.col() - beta*self.B.row() + self.B.interpolate_on_K(rowcolB))
-        #qB = self.constraint_domain.order*self.variable_domain.order*(gamma - self.B.row())*(beta - self.B.col())
         points_B = [] 
         for k in self.K_B.to_list:
             points_B.append((F(k), (pB/qB)(x=k)))
@@ -843,7 +780,6 @@ class Prover:
         rowcolC = self.C.row()*self.C.col()
         pC = self.constraint_domain.vanishing_polynomial(x=gamma)*self.variable_domain.vanishing_polynomial(x=beta)*self.C.interpolate_on_K(rowcolvalC)
         qC = self.constraint_domain.order*self.variable_domain.order*(gamma*beta - gamma*self.C.col() - beta*self.C.row() + self.C.interpolate_on_K(rowcolC))
-        #qC = self.constraint_domain.order*self.variable_domain.order*(gamma - self.C.row())*(beta - self.C.col())
         points_C = [] 
         for k in self.K_C.to_list:
             points_C.append((F(k), (pC/qC)(x=k)))
