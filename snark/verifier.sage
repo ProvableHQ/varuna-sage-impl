@@ -34,24 +34,31 @@ class Verifier:
 
     # PIOP 1: Rowcheck
     def Round_1_rhs(self):
-        gamma = Fstar.random_element()
-        while gamma in self.constraint_domain.to_list:
-            gamma = Fstar.random_element()
 
-        eta_A = F(1)
-        eta_B = Fstar.random_element()
-        eta_C = Fstar.random_element()
 
-        randomness_to_file['gamma'] = F(gamma)
+        if "test_vector_challenge" in config:
+            alpha = config["alpha"]
+            eta_A = config["eta_A"]
+            eta_B = config["eta_B"]
+            eta_C = config["eta_C"]
+        else:
+            alpha = Fstar.random_element()
+            while alpha in self.constraint_domain.to_list:
+                alpha = Fstar.random_element()
+            eta_A = F(1)
+            eta_B = Fstar.random_element()
+            eta_C = Fstar.random_element()
+
+        randomness_to_file['alpha'] = F(alpha)
         randomness_to_file['eta_A'] = F(eta_A)
         randomness_to_file['eta_B'] = F(eta_B)
         randomness_to_file['eta_C'] = F(eta_C)
 
-        return (gamma, eta_A, eta_B, eta_C)
+        return (alpha, eta_A, eta_B, eta_C)
 
 
-    def Round_2_rhs(self, sigma_A, sigma_B, sigma_C, h, gamma):
-        if sigma_A * sigma_B - sigma_C != h(x=gamma) * self.constraint_domain.vanishing_polynomial(x=gamma):
+    def Round_2_rhs(self, sigma_A, sigma_B, sigma_C, h, alpha):
+        if sigma_A * sigma_B - sigma_C != h(x=alpha) * self.constraint_domain.vanishing_polynomial(x=alpha):
             print('Error: Rowcheck verification failed.')
             assert(0)
 
@@ -59,9 +66,12 @@ class Verifier:
 
         # PIOP 2: Univariate sumcheck
     def Round_3_rhs(self):
-        beta = Fstar.random_element()
-        while beta in self.variable_domain.to_list:
+        if "test_vector_challenge" in config:
+            beta = config["beta"]
+        else:
             beta = Fstar.random_element()
+            while beta in self.variable_domain.to_list:
+                beta = Fstar.random_element()
 
         randomness_to_file['beta'] = F(beta)
         return beta
@@ -91,9 +101,14 @@ class Verifier:
         # PIOP 3: Rational sumcheck
     def Round_5_rhs(self):
 
-        delta_A = F(1)
-        delta_B = F.random_element()
-        delta_C = F.random_element()
+        if "test_vector_challenge" in config:
+            delta_A = config["delta_A"]
+            delta_B = config["delta_B"]
+            delta_C = config["delta_C"]
+        else:
+            delta_A = F(1)
+            delta_B = F.random_element()
+            delta_C = F.random_element()
 
         randomness_to_file['delta_A'] = F(delta_A)
         randomness_to_file['delta_B'] = F(delta_B)
@@ -103,8 +118,12 @@ class Verifier:
 
     def Round_6_rhs(self, gs, gamma, beta, deltas, omegas, h2):
 
-        zeta = F.random_element()
-        randomness_to_file['zeta'] = F(zeta)
+        if "test_vector_challenge" in config:
+            zeta = config["gamma"]
+        else:
+            zeta = F.random_element()
+
+        randomness_to_file['gamma'] = F(zeta)
 
         g_A = gs[0]
         g_B = gs[1]

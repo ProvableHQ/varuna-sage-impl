@@ -1,17 +1,21 @@
-import os;
+import os
+import ast
+
 work_dir = os.getcwd();
 load_attach_path(work_dir + "/algebra")
 load_attach_path(work_dir + "/snark")
+resources_folder = work_dir + "/test_vectors"
 
 load('snark/indexer.sage')
 load("snark/r1cs.sage")
 load("snark/prover.sage")
 load("snark/verifier.sage")
 
-randomness_to_file = {}
-output_elements_to_file = {}
+config = {}
 group_elements_to_file = {}
 matrix_elements_to_file = {}
+output_elements_to_file = {}
+randomness_to_file = {}
 
 def test_cases(A, B, C, z, w=None, x=None):
 
@@ -69,6 +73,16 @@ def main():
         n = int(args[1])
         b = int(args[2])
         d = int(args[3])
+        if len(args) == 5:
+            circuit = str(args[4])
+            ## Ensure the circuit path exists
+            circuit_path = resources_folder + "/" + circuit
+            if not os.path.exists(circuit_path):
+                print(f"Circuit at {circuit_path} does not exist - aborting test")
+                return
+
+            load_test_vectors(circuit_path)
+
         (A, B, C, z, w, x) = gen_r1cs_instance(m, n, b, d)
         A = matrix(A)
         B = matrix(B)
@@ -118,7 +132,6 @@ def main():
 
     f_r.close()
 
-
     with open('outputs.txt', 'w') as f_t:
         for key in output_elements_to_file:
             value = output_elements_to_file[key]
@@ -141,6 +154,48 @@ def main():
             f_g.write('\n')
 
     f_g.close()
+
+# Load test vectors into the config
+def load_test_vectors(circuit_path: str):
+    config["test_vector_challenge"] = True
+
+    print(f"Running test vectors for circuit at {circuit_path}")
+    # Open the file for reading
+    with open(circuit_path + "/challenges.input", "r") as file:
+        # Read each line from the file
+        challenges = []
+        for line in file:
+            # Remove the newline character from the end of each line
+            line = line.strip()
+            # Do something with each line
+            challenges.append(line)
+
+        config["alpha"] = F(int(challenges[0]))
+        config["eta_A"] = F(int(challenges[1]))
+        config["eta_B"] = F(int(challenges[2]))
+        config["eta_C"] = F(int(challenges[3]))
+        config["beta"] = F(int(challenges[4]))
+        config["delta_A"] = F(int(challenges[5]))
+        config["delta_B"] = F(int(challenges[6]))
+        config["delta_C"] = F(int(challenges[7]))
+        config["gamma"] = F(int(challenges[8]))
+
+    polynomials = ["g_1", "g_a", "g_b", "g_c", "h_0", "h_1", "h_2", "w_lde", "z_lde"]
+    domains = ["C", "K", "R"]
+
+    for poly in polynomials:
+        polynomial_path = circuit_path + "/polynomials/" + poly + ".txt"
+        with open(polynomial_path, 'r') as f:
+            content = f.read().strip()
+            list = ast.literal_eval(content)
+            config[poly] = [F(int(x)) for x in list]
+
+    for domain in domains:
+        domain_path = circuit_path + "/domain/" + domain + ".txt"
+        with open(domain_path, 'r') as f:
+            content = f.read().strip()
+            list = ast.literal_eval(content)
+            config[poly] = [F(int(x)) for x in list]
 
 
 if __name__ == "__main__":
