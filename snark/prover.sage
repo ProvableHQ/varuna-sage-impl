@@ -115,8 +115,8 @@ class Prover:
             assert(0)
 
         output_elements_to_file['sigma'] = sigma
-        output_elements_to_file['h1'] = h_1
-        output_elements_to_file['g1'] = g_1
+        output_elements_to_file['h_1'] = h_1
+        output_elements_to_file['g_1'] = g_1
 
         return (sigma, h_1, g_1, sigma_A, sigma_B, sigma_C)
 
@@ -224,12 +224,12 @@ class Prover:
             print('Error: Degree of gC or hC exceeds maximum bound.')
             assert(0)
 
-        output_elements_to_file['hA'] = hA
-        output_elements_to_file['hB'] = hB
-        output_elements_to_file['hC'] = hC
-        output_elements_to_file['gA'] = gA
-        output_elements_to_file['gB'] = gB
-        output_elements_to_file['gC'] = gC
+        output_elements_to_file['h_a'] = hA
+        output_elements_to_file['h_b'] = hB
+        output_elements_to_file['h_c'] = hC
+        output_elements_to_file['g_a'] = gA
+        output_elements_to_file['g_b'] = gB
+        output_elements_to_file['g_c'] = gC
 
         return (hA, hB, hC, gA, gB, gC)
 
@@ -246,6 +246,6 @@ class Prover:
         h2 += delta_B * hB * self.K_B.order/self.K.order
         h2 += delta_C * hC * self.K_C.order/self.K.order
 
-        output_elements_to_file['h2'] = h2
+        output_elements_to_file['h_2'] = h2
 
         return h2

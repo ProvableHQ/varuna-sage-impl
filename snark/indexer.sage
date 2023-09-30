@@ -56,9 +56,9 @@ class Indexer:
         group_elements_to_file['K_A'] = self.K_A.to_list
         group_elements_to_file['K_B'] = self.K_B.to_list
         group_elements_to_file['K_C'] = self.K_C.to_list
-        group_elements_to_file['variable_domain'] = self.variable_domain.to_list
-        group_elements_to_file['constraint_domain'] = self.constraint_domain.to_list
-        group_elements_to_file['public_input_domain'] = self.X.to_list
+        group_elements_to_file['C'] = self.variable_domain.to_list
+        group_elements_to_file['R'] = self.constraint_domain.to_list
+        group_elements_to_file['X'] = self.X.to_list
 
         self.A = Matrix(A, self.K_A, self.variable_domain, self.constraint_domain, self.X)
         self.B = Matrix(B, self.K_B, self.variable_domain, self.constraint_domain, self.X)

@@ -5,13 +5,16 @@ work_dir = os.getcwd();
 load_attach_path(work_dir + "/algebra")
 load_attach_path(work_dir + "/snark")
 resources_folder = work_dir + "/test_vectors"
+iop_polynomials = ["g_1", "g_a", "g_b", "g_c", "h_0", "h_1", "h_2", "w_lde", "z_lde"]
+iop_domains = ["C", "K"]
+verifier_challenges = ["alpha", "eta_A", "eta_B", "eta_C", "beta", "delta_A", "delta_B", "delta_C", "gamma"]
 
 load('snark/indexer.sage')
 load("snark/r1cs.sage")
 load("snark/prover.sage")
 load("snark/verifier.sage")
 
-config = {}
+test_vectors = {}
 group_elements_to_file = {}
 matrix_elements_to_file = {}
 output_elements_to_file = {}
@@ -69,6 +72,7 @@ def main():
         z = vector([1, 3, 35, 9, 27, 30, 0])
         test_cases(A, B, C, z, w, x)
     else:
+        circuit = ""
         m = int(args[0])
         n = int(args[1])
         b = int(args[2])
@@ -80,7 +84,6 @@ def main():
             if not os.path.exists(circuit_path):
                 print(f"Circuit at {circuit_path} does not exist - aborting test")
                 return
-
             load_test_vectors(circuit_path)
 
         (A, B, C, z, w, x) = gen_r1cs_instance(m, n, b, d)
@@ -88,6 +91,11 @@ def main():
         B = matrix(B)
         C = matrix(C)
         test_cases(A, B, C, z, w, x)
+        if len(test_vectors) > 0:
+            if verify_test_vectors():
+                print(f"\nVaruna verified for {circuit} test vectors!")
+            else:
+                print(f"\nVaruna failed to verify for {circuit} test vectors!")
 
     # Write r1cs instance to test file
     with open('r1cs.txt', 'w') as f_r1cs:
@@ -143,7 +151,6 @@ def main():
 
     f_t.close()
 
-
     with open('groups.txt', 'w') as f_g:
         for key in group_elements_to_file:
             group = group_elements_to_file[key]
@@ -157,46 +164,49 @@ def main():
 
 # Load test vectors into the config
 def load_test_vectors(circuit_path: str):
-    config["test_vector_challenge"] = True
-
     print(f"Running test vectors for circuit at {circuit_path}")
-    # Open the file for reading
-    with open(circuit_path + "/challenges.input", "r") as file:
-        # Read each line from the file
-        challenges = []
-        for line in file:
-            # Remove the newline character from the end of each line
-            line = line.strip()
-            # Do something with each line
-            challenges.append(line)
 
-        config["alpha"] = F(int(challenges[0]))
-        config["eta_A"] = F(int(challenges[1]))
-        config["eta_B"] = F(int(challenges[2]))
-        config["eta_C"] = F(int(challenges[3]))
-        config["beta"] = F(int(challenges[4]))
-        config["delta_A"] = F(int(challenges[5]))
-        config["delta_B"] = F(int(challenges[6]))
-        config["delta_C"] = F(int(challenges[7]))
-        config["gamma"] = F(int(challenges[8]))
+    # Load challenges
+    with open(f"{circuit_path}/challenges.input", "r") as file:
+        challenge_data = file.readlines()
+        for x in zip(verifier_challenges, challenge_data):
+            test_vectors[x[0]] = F(int(x[1].strip()))
 
-    polynomials = ["g_1", "g_a", "g_b", "g_c", "h_0", "h_1", "h_2", "w_lde", "z_lde"]
-    domains = ["C", "K", "R"]
+    # Load polynomials and domains
+    for item in (("domain", iop_domains), ("polynomials", iop_polynomials)):
+        (vector_folder, vector_names) = item
+        vectors = [(vector_name, f"{circuit_path}/{vector_folder}/{vector_name}.txt") for vector_name in vector_names]
+        for vector in vectors:
+            (vector_name, vector_path) = vector
+            with open(vector_path, 'r') as f:
+                test_vector = ast.literal_eval(f.read().strip())
+                vector = [F(int(x)) for x in test_vector]
+                if vector_folder == "polynomials":
+                    test_vectors[vector_name] = R(vector)
+                else:
+                    test_vectors[vector_name] = vector
 
-    for poly in polynomials:
-        polynomial_path = circuit_path + "/polynomials/" + poly + ".txt"
-        with open(polynomial_path, 'r') as f:
-            content = f.read().strip()
-            list = ast.literal_eval(content)
-            config[poly] = [F(int(x)) for x in list]
+def verify_test_vectors():
+    non_matching_polynomials = []
+    non_matching_domains = []
+    for poly in iop_polynomials:
+        try:
+            output_elements_to_file[poly] == test_vectors[poly]
+        except:
+            non_matching_polynomials.append(poly)
 
-    for domain in domains:
-        domain_path = circuit_path + "/domain/" + domain + ".txt"
-        with open(domain_path, 'r') as f:
-            content = f.read().strip()
-            list = ast.literal_eval(content)
-            config[poly] = [F(int(x)) for x in list]
+    for domain in iop_domains:
+        try:
+            group_elements_to_file[domain] == test_vectors[domain]
+        except:
+            non_matching_domains.append(domain)
 
+    if len(non_matching_polynomials) > 0 or len(non_matching_domains) > 0:
+        print("Test vectors do not match")
+        print(f"Non Matching Polynomials: {non_matching_polynomials}")
+        print(f"Non Matching Domains: {non_matching_domains}")
+        return False
+    return True
 
 if __name__ == "__main__":
     main()

@@ -36,11 +36,11 @@ class Verifier:
     def Round_1_rhs(self):
 
 
-        if "test_vector_challenge" in config:
-            alpha = config["alpha"]
-            eta_A = config["eta_A"]
-            eta_B = config["eta_B"]
-            eta_C = config["eta_C"]
+        if len(test_vectors) > 0:
+            alpha = test_vectors["alpha"]
+            eta_A = test_vectors["eta_A"]
+            eta_B = test_vectors["eta_B"]
+            eta_C = test_vectors["eta_C"]
         else:
             alpha = Fstar.random_element()
             while alpha in self.constraint_domain.to_list:
@@ -66,8 +66,8 @@ class Verifier:
 
         # PIOP 2: Univariate sumcheck
     def Round_3_rhs(self):
-        if "test_vector_challenge" in config:
-            beta = config["beta"]
+        if len(test_vectors) > 0:
+            beta = test_vectors["beta"]
         else:
             beta = Fstar.random_element()
             while beta in self.variable_domain.to_list:
@@ -101,10 +101,10 @@ class Verifier:
         # PIOP 3: Rational sumcheck
     def Round_5_rhs(self):
 
-        if "test_vector_challenge" in config:
-            delta_A = config["delta_A"]
-            delta_B = config["delta_B"]
-            delta_C = config["delta_C"]
+        if len(test_vectors) > 0:
+            delta_A = test_vectors["delta_A"]
+            delta_B = test_vectors["delta_B"]
+            delta_C = test_vectors["delta_C"]
         else:
             delta_A = F(1)
             delta_B = F.random_element()
@@ -118,8 +118,8 @@ class Verifier:
 
     def Round_6_rhs(self, gs, gamma, beta, deltas, omegas, h2):
 
-        if "test_vector_challenge" in config:
-            zeta = config["gamma"]
+        if len(test_vectors) > 0:
+            zeta = test_vectors["gamma"]
         else:
             zeta = F.random_element()
 
