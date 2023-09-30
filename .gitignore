@@ -1,4 +1,5 @@
 *.py
+*.idea
 
 r1cs.txt
 randomness.txt
