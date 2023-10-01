@@ -1,10 +1,10 @@
-# Varuna for Sagemath: A Second Implementation of Aleo's Zero-Knowledge Proof System
+# Varuna for Sagemath: A Second Implementation of the Varuna Proof System
 
 ## Introduction
 Welcome to the Sagemath implementation of the Varuna proof system. 
 
 Varuna is an extension of the well-known Marlin proof system and has been implemented in production by the Aleo in Rust
-to power the zero-knowledge proofs within the Aleo protocol. 
+to power the zero-knowledge proofs within the Aleo protocol.
 
 ## Test Vectors
 Test vectors verify the correctness of the implementation can be found in the `test` directory. Within this directory 
