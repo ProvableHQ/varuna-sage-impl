@@ -1,26 +1,34 @@
 import os
 import ast
 
+# Setup the environment
 work_dir = os.getcwd();
 load_attach_path(work_dir + "/algebra")
 load_attach_path(work_dir + "/snark")
-resources_folder = work_dir + "/test_vectors"
-iop_polynomials = ["g_1", "g_a", "g_b", "g_c", "h_0", "h_1", "h_2", "w_lde", "z_lde"]
-iop_domains = ["C", "K"]
-verifier_challenges = ["alpha", "eta_A", "eta_B", "eta_C", "beta", "delta_A", "delta_B", "delta_C", "gamma"]
+load_attach_path(work_dir + "/test")
+resources_folder = work_dir + "/test"
 
+# Import Varuna logic
 load('snark/indexer.sage')
 load("snark/r1cs.sage")
 load("snark/prover.sage")
 load("snark/verifier.sage")
+load("test/utils.sage")
 
-test_vectors = {}
+# Specify the names of the intermediate polynomials, iop domains, and verifier challenges used in the Varuna proof
+iop_polynomials = ["g_1", "g_a", "g_b", "g_c", "h_0", "h_1", "h_2", "w_lde", "z_lde"]
+iop_domains = ["C", "K"]
+verifier_challenges = ["alpha", "eta_A", "eta_B", "eta_C", "beta", "delta_A", "delta_B", "delta_C", "gamma"]
+
+# Initialize the data containers used to contain proof outputs and the test vectors
 group_elements_to_file = {}
 matrix_elements_to_file = {}
 output_elements_to_file = {}
 randomness_to_file = {}
+test_vectors = {}
 
-def test_cases(A, B, C, z, w=None, x=None):
+# Execute a Varuna Snark proof for an R1CS instance
+def run_varuna(A, B, C, z, w=None, x=None):
 
     I = Indexer(matrix(A), matrix(B), matrix(C), vector(z), vector(w), vector(x))
     P = Prover(I.A, I.B, I.C, I.K, I.K_A, I.K_B, I.K_C, I.variable_domain, I.constraint_domain, I.X, I.z, I.x_poly, I.w_poly)
@@ -60,153 +68,72 @@ def test_cases(A, B, C, z, w=None, x=None):
     print('Result of Rational sumcheck: ', bit_2)
 
 def main():
-    args = sys.argv[1:]
+    ## TODO - Refactor this to use argparse so that named arguments can be passed in.
+    cli_inputs = sys.argv
 
-    if args[0] == 'custom':
-        # custom test case
+    if len(cli_inputs) == 1:
+        # Run the Varuna on the circuit describing x^3 + x+ 5 = 35.
         A = matrix([[0, 1, 0, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0], [0, 1, 0, 0, 1, 0, 0], [5, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0]])
         B = matrix([[0, 1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]])
         C = matrix([[0, 0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1, 0], [0, 0, 1, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]])
         x = vector([1, 3, 35])
         w = vector([9, 27, 30, 0])
         z = vector([1, 3, 35, 9, 27, 30, 0])
-        test_cases(A, B, C, z, w, x)
-    else:
-        circuit = ""
+        run_varuna(A, B, C, z, w, x)
+        write_test_results_to_file(A, B, C, z)
+    elif len(cli_inputs) == 2:
+        # Run the Varuna on the test vectors specified by the user.
+        # TODO - Refactor to support for reading arbitrary/multiple circuits from instance.input.
+
+        # Get the name of the circuit Varuna should be tested on.
+        circuit = cli_inputs[1]
+        if cli_inputs[1] == "circuit_0":
+            ## Ensure the path to the circuit Varuna should be tested on exists path exists.
+            circuit_path = f"{resources_folder}/{circuit}"
+            if not os.path.exists(circuit_path):
+                print(f"Circuit at {circuit_path} does not exist - aborting test")
+                return
+
+            ## Load the test vectors
+            load_test_vectors(circuit_path)
+
+            ## Generate the R1CS that Varuna will run on.
+            (A, B, C, z, w, x) = gen_r1cs_instance(7, 7, 2, 3)
+            A = matrix(A)
+            B = matrix(B)
+            C = matrix(C)
+
+            ## Run Varuna on the R1CS.
+            run_varuna(A, B, C, z, w, x)
+
+            ## Verify that the intermediate outputs of Varuna match the expected test vectors.
+            if len(test_vectors) > 0:
+                if verify_test_vectors():
+                    print(f"\nVaruna verified for {circuit} test vectors!")
+                else:
+                    print(f"\nVaruna failed to verify for {circuit} test vectors!")
+        else:
+            print(f"No test vectors exist for circuit {circuit} - aborting test")
+            return
+
+        write_test_results_to_file(A, B, C, z, circuit)
+    elif len(cli_inputs) == 5:
+        # Run Varuna on a randomly generated R1CS instance.
+        args = cli_inputs[1:]
         m = int(args[0])
         n = int(args[1])
         b = int(args[2])
         d = int(args[3])
-        if len(args) == 5:
-            circuit = str(args[4])
-            ## Ensure the circuit path exists
-            circuit_path = resources_folder + "/" + circuit
-            if not os.path.exists(circuit_path):
-                print(f"Circuit at {circuit_path} does not exist - aborting test")
-                return
-            load_test_vectors(circuit_path)
 
+        ## Generate the R1CS that Varuna will run on.
         (A, B, C, z, w, x) = gen_r1cs_instance(m, n, b, d)
         A = matrix(A)
         B = matrix(B)
         C = matrix(C)
-        test_cases(A, B, C, z, w, x)
-        if len(test_vectors) > 0:
-            if verify_test_vectors():
-                print(f"\nVaruna verified for {circuit} test vectors!")
-            else:
-                print(f"\nVaruna failed to verify for {circuit} test vectors!")
 
-    # Write r1cs instance to test file
-    with open('r1cs.txt', 'w') as f_r1cs:
-        f_r1cs.write('A')
-        f_r1cs.write('\n')
-        for i in range(0, A.nrows()):
-            for j in range(0, A.ncols()):
-                f_r1cs.write(str(A[i, j]) + ', ')
-            f_r1cs.write('\n')
-        f_r1cs.write('\n')
-        f_r1cs.write('\n')
-        f_r1cs.write('B')
-        f_r1cs.write('\n')
-        for i in range(0, B.nrows()):
-            for j in range(0, B.ncols()):
-                f_r1cs.write(str(B[i, j]) + ', ')
-            f_r1cs.write('\n')
-        f_r1cs.write('\n')
-        f_r1cs.write('\n')
-        f_r1cs.write('C')
-        f_r1cs.write('\n')
-        for i in range(0, C.nrows()):
-            for j in range(0, C.ncols()):
-                f_r1cs.write(str(C[i, j]) + ', ')
-            f_r1cs.write('\n')
-        f_r1cs.write('\n')
-        f_r1cs.write('\n')
-        f_r1cs.write('z')
-        f_r1cs.write('\n')
-        for i in range(0, len(z)):
-            f_r1cs.write(str(z[i]) + ', ')
-
-    f_r1cs.close()
-
-    # Write randomness and test elements to file
-    with open('randomness.txt', 'w') as f_r:
-        for key in randomness_to_file:
-            value = randomness_to_file[key]
-            f_r.write(str(key) + ' ' + str(value))
-            f_r.write('\n')
-            f_r.write('\n')
-
-    f_r.close()
-
-    with open('outputs.txt', 'w') as f_t:
-        for key in output_elements_to_file:
-            value = output_elements_to_file[key]
-            f_t.write(str(key) + ' ')
-            for coeff in R(value):
-                f_t.write(str(coeff) + ',')
-            f_t.write('\n')
-            f_t.write('\n')
-
-    f_t.close()
-
-    with open('groups.txt', 'w') as f_g:
-        for key in group_elements_to_file:
-            group = group_elements_to_file[key]
-            f_g.write(str(key) + ' ')
-            for g in group:
-                f_g.write(str(F(g))+ ',')
-            f_g.write('\n')
-            f_g.write('\n')
-
-    f_g.close()
-
-# Load test vectors into the config
-def load_test_vectors(circuit_path: str):
-    print(f"Running test vectors for circuit at {circuit_path}")
-
-    # Load challenges
-    with open(f"{circuit_path}/challenges.input", "r") as file:
-        challenge_data = file.readlines()
-        for x in zip(verifier_challenges, challenge_data):
-            test_vectors[x[0]] = F(int(x[1].strip()))
-
-    # Load polynomials and domains
-    for item in (("domain", iop_domains), ("polynomials", iop_polynomials)):
-        (vector_folder, vector_names) = item
-        vectors = [(vector_name, f"{circuit_path}/{vector_folder}/{vector_name}.txt") for vector_name in vector_names]
-        for vector in vectors:
-            (vector_name, vector_path) = vector
-            with open(vector_path, 'r') as f:
-                test_vector = ast.literal_eval(f.read().strip())
-                vector = [F(int(x)) for x in test_vector]
-                if vector_folder == "polynomials":
-                    test_vectors[vector_name] = R(vector)
-                else:
-                    test_vectors[vector_name] = vector
-
-def verify_test_vectors():
-    non_matching_polynomials = []
-    non_matching_domains = []
-    for poly in iop_polynomials:
-        try:
-            output_elements_to_file[poly] == test_vectors[poly]
-        except:
-            non_matching_polynomials.append(poly)
-
-    for domain in iop_domains:
-        try:
-            group_elements_to_file[domain] == test_vectors[domain]
-        except:
-            non_matching_domains.append(domain)
-
-    if len(non_matching_polynomials) > 0 or len(non_matching_domains) > 0:
-        print("Test vectors do not match")
-        print(f"Non Matching Polynomials: {non_matching_polynomials}")
-        print(f"Non Matching Domains: {non_matching_domains}")
-        return False
-    return True
+        write_test_results_to_file(A, B, C, z)
+    else:
+        print("Invalid number of arguments passed to Varuna - aborting test")
 
 if __name__ == "__main__":
     main()
