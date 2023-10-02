@@ -22,14 +22,7 @@ each contain:
 Steps on running Varuna on the test vectors can be found in the [Usage](#usage) section.
 
 ## Usage
-
-Varuna can be run on a default example of a circuit representing `x^3 + x + 5 = 35` by invoking
-
-```
-sage run.sage
-```
-
-### Run Varuna on the Test Vectors
+### Run Varuna on Test Vectors
 Varuna can be run on the existing test vectors by selecting any circuit in the `test` directory. The circuits are all in
 named folders so you can select any circuit's test vectors you wish to run Varuna on.
 ```

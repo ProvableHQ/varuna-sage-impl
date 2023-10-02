@@ -68,20 +68,10 @@ def run_varuna(A, B, C, z, w=None, x=None):
     print('Result of Rational sumcheck: ', bit_2)
 
 def main():
-    ## TODO - Refactor this to use argparse so that named arguments can be passed in.
     cli_inputs = sys.argv
 
-    if len(cli_inputs) == 1:
-        # Run the Varuna on the circuit describing x^3 + x+ 5 = 35.
-        A = matrix([[0, 1, 0, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0], [0, 1, 0, 0, 1, 0, 0], [5, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0]])
-        B = matrix([[0, 1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]])
-        C = matrix([[0, 0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1, 0], [0, 0, 1, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]])
-        x = vector([1, 3, 35])
-        w = vector([9, 27, 30, 0])
-        z = vector([1, 3, 35, 9, 27, 30, 0])
-        run_varuna(A, B, C, z, w, x)
-        write_test_results_to_file(A, B, C, z)
-    elif len(cli_inputs) == 2:
+    ## TODO - Refactor this to use argparse so that named arguments can be passed in.
+    if len(cli_inputs) == 2:
         # Run the Varuna on the test vectors specified by the user.
         # TODO - Refactor to support for reading arbitrary/multiple circuits from instance.input.
 
