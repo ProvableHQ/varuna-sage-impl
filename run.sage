@@ -88,25 +88,25 @@ def main():
         # Get the name of the circuit Varuna should be tested on.
         circuit = cli_inputs[1]
         if cli_inputs[1] == "circuit_0":
-            ## Ensure the path to the circuit Varuna should be tested on exists path exists.
+            # Ensure the path to the circuit Varuna should be tested on exists path exists.
             circuit_path = f"{resources_folder}/{circuit}"
             if not os.path.exists(circuit_path):
                 print(f"Circuit at {circuit_path} does not exist - aborting test")
                 return
 
-            ## Load the test vectors
+            # Load the test vectors
             load_test_vectors(circuit_path)
 
-            ## Generate the R1CS that Varuna will run on.
+            # Generate the R1CS that Varuna will run on.
             (A, B, C, z, w, x) = gen_r1cs_instance(7, 7, 2, 3)
             A = matrix(A)
             B = matrix(B)
             C = matrix(C)
 
-            ## Run Varuna on the R1CS.
+            # Run Varuna on the R1CS.
             run_varuna(A, B, C, z, w, x)
 
-            ## Verify that the intermediate outputs of Varuna match the expected test vectors.
+            # Verify that the intermediate outputs of Varuna match the expected test vectors.
             if len(test_vectors) > 0:
                 if verify_test_vectors():
                     print(f"\nVaruna verified for {circuit} test vectors!")
@@ -116,6 +116,7 @@ def main():
             print(f"No test vectors exist for circuit {circuit} - aborting test")
             return
 
+        # Write test results to file.
         write_test_results_to_file(A, B, C, z, circuit)
     elif len(cli_inputs) == 5:
         # Run Varuna on a randomly generated R1CS instance.
@@ -125,12 +126,16 @@ def main():
         b = int(args[2])
         d = int(args[3])
 
-        ## Generate the R1CS that Varuna will run on.
+        # Generate the R1CS that Varuna will run on.
         (A, B, C, z, w, x) = gen_r1cs_instance(m, n, b, d)
         A = matrix(A)
         B = matrix(B)
         C = matrix(C)
 
+        # Run Varuna on the R1CS.
+        run_varuna(A, B, C, z, w, x)
+
+        # Write test results to file.
         write_test_results_to_file(A, B, C, z)
     else:
         print("Invalid number of arguments passed to Varuna - aborting test")

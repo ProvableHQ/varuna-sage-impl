@@ -6,17 +6,20 @@ Welcome to the Sagemath implementation of the Varuna proof system.
 Varuna is an extension of the well-known Marlin proof system and has been implemented in production by the Aleo in Rust
 to power the zero-knowledge proofs within the Aleo protocol.
 
-## Test Vectors
-Test vectors verify the correctness of the implementation can be found in the `test` directory. Within this directory 
-are folders that each contain:
-1. `instance.input`: The R1CS instance the used in the proof
-2. `witness.input`: A valid witness to satisfying the R1CS instance the prover is proving knowledge of
-3. `challenge.input`: Verifier challenges provided to the prover (generated from Random oracles)
-4. `domain`: A folder contain the various domains used by the PIOPs in the proof
-5. `polynomials`: The intermediate PIOPs output by the prover at each step
+This implementation exists to provide a reference implementation of Varuna for researchers and developers to better 
+understand the Varuna protocol and to provide test vectors which can be used by other implementors of Varuna to verify the 
+correctness of their implementation.
 
-These test vectors are provided to verify the correctness of this implementation and can be used to verify any other
-concrete implementations of Varuna.
+## Test Vectors
+Test vectors can be found in the `test` directory. Within this directory are folders which represent R1CS circuits that 
+each contain:
+1. `instance.input`: The R1CS instance the used in the proof.
+2. `witness.input`: A valid witness to satisfying the R1CS instance the prover is proving knowledge of.
+3. `challenge.input`: Verifier challenges provided to the prover.
+4. `domain`: A folder that contains the various domains used by the PIOPs in the Varuna proof.
+5. `polynomials`: The intermediate PIOPs output by the prover at each step.
+
+Steps on running Varuna on the test vectors can be found in the [Usage](#usage) section.
 
 ## Usage
 
@@ -30,7 +33,7 @@ sage run.sage
 Varuna can be run on the existing test vectors by selecting any circuit in the `test` directory. The circuits are all in
 named folders so you can select any circuit's test vectors you wish to run Varuna on.
 ```
-sage varuna.sage circuit_0
+sage run.sage circuit_0
 ```
 
 If Varuna's output matches the test vectors the a message indicating the test vectors are valid will be printed.
