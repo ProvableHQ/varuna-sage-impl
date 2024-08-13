@@ -3,8 +3,10 @@
 ## Introduction
 Welcome to the SageMath implementation of the Varuna proof system. 
 
-Varuna is an optimized version of the well-known Marlin (https://eprint.iacr.org/2019/1047.pdf) proof system that has been implemented in production by Provable in Rust
-to power zero-knowledge proofs within the Aleo protocol.
+Varuna is an optimized version of the well-known Marlin (https://eprint.iacr.org/2019/1047.pdf) proof system and has been implemented in production by Provable in Rust
+to power zero-knowledge proofs within the Aleo Virtual Machine.
+
+A detailed protocol specification can be found in the `docs` directory. The protocol is implemented for a single circuit in R1CS with zero-knowledge. We leave the implementation of multi-circuit batching and lookups to future work. 
 
 The purpose of this implementation is two-fold; first, to provide a high-level implementation of Varuna in SageMath for researchers and developers, and second, to sanity check the Varuna implementation in Rust by validating it with test vectors. 
 
