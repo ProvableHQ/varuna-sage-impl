@@ -28,25 +28,25 @@ def write_test_results_to_file(A, B, C, z, circuit=""):
     with open(f"{output_dir}/r1cs.txt", 'w') as f_r1cs:
         f_r1cs.write('A')
         f_r1cs.write('\n')
-        for i in range(0, A.nrows()):
-            for j in range(0, A.ncols()):
-                f_r1cs.write(str(A[i, j]) + ', ')
+        for i in range(0, len(A)):
+            for j in range(0, len(A[0])):
+                f_r1cs.write(str(A[i][j]) + ', ')
             f_r1cs.write('\n')
         f_r1cs.write('\n')
         f_r1cs.write('\n')
         f_r1cs.write('B')
         f_r1cs.write('\n')
-        for i in range(0, B.nrows()):
-            for j in range(0, B.ncols()):
-                f_r1cs.write(str(B[i, j]) + ', ')
+        for i in range(0, len(B)):
+            for j in range(0, len(B[0])):
+                f_r1cs.write(str(B[i][j]) + ', ')
             f_r1cs.write('\n')
         f_r1cs.write('\n')
         f_r1cs.write('\n')
         f_r1cs.write('C')
         f_r1cs.write('\n')
-        for i in range(0, C.nrows()):
-            for j in range(0, C.ncols()):
-                f_r1cs.write(str(C[i, j]) + ', ')
+        for i in range(0, len(C)):
+            for j in range(0, len(C[0])):
+                f_r1cs.write(str(C[i][j]) + ', ')
             f_r1cs.write('\n')
         f_r1cs.write('\n')
         f_r1cs.write('\n')
@@ -135,3 +135,50 @@ def verify_test_vectors():
         print(f"Non Matching Domains: {non_matching_domains}")
         return False
     return True
+
+
+
+def load_instance(circuit_path: str):
+    def parse_matrix_section(lines, start_line):
+        matrix = []
+        for line in lines[start_line:]:
+            if line.strip() in ['A', 'B', 'C']:
+                break  # Stop if we reach the next matrix identifier
+            row = [int(x) for x in line.strip().split(',') if x.strip()]
+            if row:
+                matrix.append(row)
+        return matrix
+
+    # Read the file content
+    with open(circuit_path, 'r') as file:
+        lines = file.readlines()
+
+    # Identify where each matrix starts
+    A_start = lines.index('A\n') + 1 if 'A\n' in lines else None
+    B_start = lines.index('B\n') + 1 if 'B\n' in lines else None
+    C_start = lines.index('C\n') + 1 if 'C\n' in lines else None
+
+    # Parse matrices
+    A = parse_matrix_section(lines, A_start) if A_start is not None else None
+    B = parse_matrix_section(lines, B_start) if B_start is not None else None
+    C = parse_matrix_section(lines, C_start) if C_start is not None else None
+
+    return A, B, C
+
+
+def load_witness(witness_path: str):
+    def parse_array(line):
+        return [int(x) for x in line.strip().strip('[]').split(',')]
+
+    # Read the file content
+    with open(witness_path, 'r') as file:
+        lines = file.readlines()
+
+    # Parse the arrays
+    x = parse_array(lines[0])
+    w = parse_array(lines[1])
+
+    return x, w
+
+
+

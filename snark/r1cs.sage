@@ -68,3 +68,25 @@ def gen_r1cs_instance(m: int, n: int, b: int, d: int):
         assert(0)
 
     return (A, B, C, z, w, x)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
