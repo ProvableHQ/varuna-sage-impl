@@ -1,18 +1,16 @@
-# Varuna for Sagemath: A Second Implementation of the Varuna Proof System
+# Varuna for SageMath: a Second Implementation of the Varuna Proof System
 
 ## Introduction
-Welcome to the Sagemath implementation of the Varuna proof system. 
+Welcome to the SageMath implementation of the Varuna proof system. 
 
-Varuna is an extension of the well-known Marlin proof system and has been implemented in production by the Aleo in Rust
-to power the zero-knowledge proofs within the Aleo protocol.
+Varuna is an optimized version of the well-known Marlin (https://eprint.iacr.org/2019/1047.pdf) proof system that has been implemented in production by Provable in Rust
+to power zero-knowledge proofs within the Aleo protocol.
 
-This implementation exists to provide a reference implementation of Varuna for researchers and developers to better 
-understand the Varuna protocol and to provide test vectors which can be used by other implementors of Varuna to verify the 
-correctness of their implementation.
+The purpose of this implementation is two-fold; first, to provide a high-level implementation of Varuna in SageMath for researchers and developers, and second, to sanity check the Varuna implementation in Rust by validating it with test vectors. 
 
 ## Test Vectors
-Test vectors can be found in the `test` directory. Within this directory are folders which represent R1CS circuits that 
-each contain:
+Test vectors can be found in the `test` directory. Within this directory are folders that represent R1CS circuits which 
+contain:
 1. `instance.input`: The R1CS instance the used in the proof.
 2. `witness.input`: A valid witness to satisfying the R1CS instance the prover is proving knowledge of.
 3. `challenge.input`: Verifier challenges provided to the prover.
@@ -22,32 +20,17 @@ each contain:
 Steps on running Varuna on the test vectors can be found in the [Usage](#usage) section.
 
 ## Usage
-### Run Varuna on Test Vectors
-Varuna can be run on the existing test vectors by selecting any circuit in the `test` directory. The circuits are all in
-named folders so you can select any circuit's test vectors you wish to run Varuna on.
+### Run Varuna on a Custom Circuit 
+Varuna can be run on a custom circuit by selecting a pre-generated circuit in the `test` directory. An example usage is: 
 ```
 sage run.sage circuit_0
 ```
+If the Varuna protocol runs successfully, it will be indicated in the logs and the relevant outputs for the polynomial IOPs will be outputted in the directory `outputs`.
 
-If Varuna's output matches the test vectors the a message indicating the test vectors are valid will be printed.
+Otherwise, an error message will be logged indicating the test vectors are invalid.
 
-Otherwise an error message will be printed indicating the test vectors are invalid.
-
-### Run Varuna on a Custom Circuit
-To run Varuna on a custom circuit - you need to pass four arguments `m n b d` where:
-- m is the number of constraints
-- n is the number of variables
-- b is the "base" for z (i.e. z = [b, b^2, b^3, ..., b^n] )
-- d is the multiplicative depth of the circuit
-
-Example usage:
-```
-sage run.sage 7 7 2 3
-```
-
-The example above will create a circuit with `padded_public_variables`: `[1, 8, 32, 128]` and `private_variables`: `[2, 4, 2]`.
 
 ### Outputs
 
-All outputs are written to the `outputs` directory (which will be created upon invoking `run.sage` if doesn't exist. 
+All outputs are written to the `outputs` directory (which will be created upon invoking `run.sage`). 
 If you would like to see the results of the invocation of Varuna, please check the `outputs` directory.
